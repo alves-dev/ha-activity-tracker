@@ -16,6 +16,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - id: version
+        with:
+          fetch-depth: 0
+      - name: Read development version
+        id: version
         run: echo "value=$(jq -r '.version' custom_components/activity_tracker/manifest.json)-dev" >> "$GITHUB_OUTPUT"
-      - run: git tag -f "v${{ steps.version.outputs.value }}" && git push origin -f "v${{ steps.version.outputs.value }}"
+      - name: Delete existing development release
+        run: gh release delete "v${DEV_VERSION}" --yes || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEV_VERSION: ${{ steps.version.outputs.value }}
+      - name: Create or update development tag
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag -f "v${{ steps.version.outputs.value }}"
+          git push origin --force "v${{ steps.version.outputs.value }}"
+      - name: Create development prerelease
+        run: |
+          gh release create "v${DEV_VERSION}" \
+            --target "${GITHUB_SHA}" \
+            --title "v${DEV_VERSION}" \
+            --notes "Development release from develop." \
+            --prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEV_VERSION: ${{ steps.version.outputs.value }}
