@@ -1,0 +1,115 @@
+{
+  "title": "Activity Tracker",
+  "config": {
+    "step": {
+      "user": {
+        "title": "What would you like to track?",
+        "description": "A monitor watches one activity rule and creates its own Home Assistant device. {monitor_examples}",
+        "data": {
+          "monitor_type": "Activity rule"
+        },
+        "data_description": {
+          "monitor_type": "Choose how this monitor decides that activity is happening."
+        }
+      },
+      "source": {
+        "title": "Choose the activity source",
+        "description": "{monitor_type_guidance}",
+        "data": {
+          "name": "Monitor name",
+          "entity_id": "Source entity",
+          "active_states": "States that count as active",
+          "zone_entity_id": "Zone to track",
+          "person_entity_id": "Person",
+          "area_id": "Home Assistant area",
+          "presence_entity_id": "Presence sensor",
+          "value_source": "Where the application value comes from",
+          "value_attribute": "Application ID attribute",
+          "label_attribute": "Application name attribute (optional)"
+        },
+        "data_description": {
+          "name": "A clear name used for this monitor device and its entities, for example “Living room TV” or “Barber visits” .",
+          "entity_id": "The entity whose state is observed. Activity Tracker never changes it.",
+          "active_states": "Enter exact state values separated by commas, for example: on, playing, paused. Moving between these values keeps one session open.",
+          "zone_entity_id": "Only this zone counts as activity. Home, away, and every other zone do not count.",
+          "person_entity_id": "Used for identity and naming only. The selected presence sensor is the source of truth for activity.",
+          "area_id": "Used for the area identity and name. An area alone does not report who is present.",
+          "presence_entity_id": "The binary sensor that reports whether the selected person is in the selected area. It is normally active when its state is on.",
+          "value_source": "Use Entity state when it is the application identifier. Use Entity attribute when the identifier is stored in an attribute.",
+          "value_attribute": "Required for an attribute source. Prefer a stable identifier such as a package name when available.",
+          "label_attribute": "Optional friendly name shown in Home Assistant. Changing this label does not create a different tracked application."
+        }
+      },
+      "behavior": {
+        "title": "Choose session behavior",
+        "description": "These choices apply only to this monitor. They determine which completed activity is retained and how short interruptions are handled.",
+        "data": {
+          "retention_days": "Keep daily summaries for",
+          "minimum_session_seconds": "Ignore sessions shorter than",
+          "unavailable_behavior": "When the source is unavailable",
+          "unavailable_tolerance_seconds": "Unavailable tolerance",
+          "merge_gap_seconds": "Merge inactive gaps shorter than"
+        },
+        "data_description": {
+          "retention_days": "Number of calendar days to keep compact daily summaries. The minimum is 7 days; older summaries are deleted during cleanup.",
+          "minimum_session_seconds": "Completed sessions shorter than this many seconds are discarded. Use 0 to keep every completed session.",
+          "unavailable_behavior": "Choose whether an unavailable or unknown source ends activity, remains pending briefly, or is reported as unknown time.",
+          "unavailable_tolerance_seconds": "How long an unavailable source may remain pending before the selected unavailable behavior applies. Use 0 to apply it immediately.",
+          "merge_gap_seconds": "For brief observed inactive gaps such as GPS noise. The gap itself is not activity. Use 0 to end the session immediately."
+        }
+      },
+      "periods": {
+        "title": "Choose report periods",
+        "description": "Select one or more periods for report sensors. A rolling period means local calendar dates, not an exact number of 24-hour blocks.",
+        "data": {
+          "periods": "Built-in calendar periods",
+          "rolling_days": "Additional rolling-day periods"
+        },
+        "data_description": {
+          "periods": "Today starts at local midnight. Current week and month follow Home Assistant's local calendar.",
+          "rolling_days": "Optional positive whole-day values separated by commas, for example: 7, 30, 35. “35” means today plus the previous 34 local dates."
+        }
+      },
+      "metrics": {
+        "title": "Choose sensors to create",
+        "description": "Only selected metrics create entities. Choose the questions you actually need answered.",
+        "data": {
+          "enabled_metrics": "Metrics"
+        },
+        "data_description": {
+          "enabled_metrics": "Duration and session-count metrics are created for every selected period. Current and latest-session metrics create one entity each."
+        }
+      },
+      "review": {
+        "title": "Review this monitor",
+        "description": "Create {name} using {source}. It will have {metrics} selected metric type(s) across these periods: {periods}. You can change session behavior later in Configure."
+      }
+    },
+    "error": {
+      "required": "Provide at least one value before continuing.",
+      "invalid_rolling_days": "Use only positive whole numbers separated by commas, for example: 7, 30, 35."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Adjust session behavior",
+        "description": "Changes here apply to future observations. Reducing retention removes older daily summaries during cleanup.",
+        "data": {
+          "retention_days": "Keep daily summaries for",
+          "minimum_session_seconds": "Ignore sessions shorter than",
+          "unavailable_behavior": "When the source is unavailable",
+          "unavailable_tolerance_seconds": "Unavailable tolerance",
+          "merge_gap_seconds": "Merge inactive gaps shorter than"
+        },
+        "data_description": {
+          "retention_days": "Number of calendar days to retain. A longer report period cannot be reliable if it exceeds this value.",
+          "minimum_session_seconds": "Discard completed sessions shorter than this duration. Set to 0 to keep all completed sessions.",
+          "unavailable_behavior": "How an unknown or unavailable source affects the in-progress session.",
+          "unavailable_tolerance_seconds": "Wait this many seconds before applying the unavailable behavior.",
+          "merge_gap_seconds": "Treat a brief observed inactive interval as part of one visit or use session. The gap is excluded from duration."
+        }
+      }
+    }
+  }
+}

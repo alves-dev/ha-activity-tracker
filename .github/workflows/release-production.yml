@@ -1,0 +1,36 @@
+name: Production Release
+
+on:
+  push:
+    branches: [main]
+    paths: [custom_components/activity_tracker/manifest.json]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: activity-tracker-production-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - id: version
+        run: |
+          version="$(jq -r '.version' custom_components/activity_tracker/manifest.json)"
+          test "${GITHUB_REF}" = "refs/heads/main"
+          test "${version%-dev}" = "$version"
+          git ls-remote --exit-code --tags origin "refs/tags/v${version}" && exit 1 || true
+          sed -n "/^## \[${version}\] - /,/^## \[/p" CHANGELOG.md | sed '$d' > release-notes.md
+          test -s release-notes.md
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+      - run: git tag -a "v${{ steps.version.outputs.version }}" -m "v${{ steps.version.outputs.version }}" && git push origin "v${{ steps.version.outputs.version }}"
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          body_path: release-notes.md
