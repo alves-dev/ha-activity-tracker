@@ -61,8 +61,9 @@ class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 {
                     vol.Required(CONF_MONITOR_TYPE): selector.SelectSelector(
                         selector.SelectSelectorConfig(
-                            options=_select_options(MONITOR_TYPES),
+                            options=list(MONITOR_TYPES),
                             mode=selector.SelectSelectorMode.LIST,
+                            translation_key="monitor_type",
                         )
                     )
                 }
@@ -132,8 +133,9 @@ class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_VALUE_SOURCE, default="state"
                     ): selector.SelectSelector(
                         selector.SelectSelectorConfig(
-                            options=_select_options(("state", "attribute")),
+                            options=["state", "attribute"],
                             mode=selector.SelectSelectorMode.LIST,
+                            translation_key="application_value_source",
                         )
                     ),
                     vol.Optional(CONF_VALUE_ATTRIBUTE): str,
@@ -180,7 +182,9 @@ class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Optional(CONF_PERIODS, default=[]): selector.SelectSelector(
                     selector.SelectSelectorConfig(
-                        options=_select_options(PERIODS), multiple=True
+                        options=list(PERIODS),
+                        multiple=True,
+                        translation_key="report_period",
                     )
                 ),
                 vol.Optional("rolling_days", default=""): str,
@@ -205,7 +209,9 @@ class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 {
                     vol.Required(CONF_ENABLED_METRICS): selector.SelectSelector(
                         selector.SelectSelectorConfig(
-                            options=_select_options(METRICS), multiple=True
+                            options=list(METRICS),
+                            multiple=True,
+                            translation_key="metric",
                         )
                     )
                 }
@@ -273,8 +279,9 @@ def _behavior_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
                 ),
             ): selector.SelectSelector(
                 selector.SelectSelectorConfig(
-                    options=_select_options(("end", "pending", "unknown")),
+                    options=["end", "pending", "unknown"],
                     mode=selector.SelectSelectorMode.LIST,
+                    translation_key="unavailable_behavior",
                 )
             ),
             vol.Required(
@@ -342,38 +349,3 @@ def _source_guidance(monitor_type: str) -> str:
         "The monitor is active whenever the source entity state matches one of the "
         "states you enter.",
     )
-
-
-def _select_options(values: tuple[str, ...]) -> list[dict[str, str]]:
-    """Build user-friendly labels while retaining stable stored values."""
-    labels = {
-        "entity_state": "Entity is in one of several active states",
-        "zone": "Person or device is in a zone",
-        "area_presence": "Person is in an internal area (presence sensor)",
-        "foreground_application": "Foreground application",
-        "generic": "Generic state rule",
-        "state": "Entity state",
-        "attribute": "Entity attribute",
-        "current_day": "Today",
-        "current_week": "Current week",
-        "current_month": "Current month",
-        "total_duration": "Total activity duration",
-        "session_count": "Session count",
-        "current_session_duration": "Current session duration",
-        "last_session_duration": "Last completed session duration",
-        "last_session_start": "Last completed session start",
-        "last_session_end": "Last completed session end",
-        "days_since_last_session": "Days since last completed session",
-        "average_daily_duration": "Average daily duration",
-        "average_session_duration": "Average session duration",
-        "longest_session_duration": "Longest session duration",
-        "shortest_session_duration": "Shortest session duration",
-        "first_activity_time": "First activity time today",
-        "last_activity_time": "Last activity time today",
-        "weekday_highest_total": "Weekday with the highest total activity",
-        "unknown_duration": "Unknown-duration total",
-        "end": "End the session",
-        "pending": "Keep the session pending",
-        "unknown": "Mark the interval as unknown",
-    }
-    return [{"value": value, "label": labels.get(value, value)} for value in values]

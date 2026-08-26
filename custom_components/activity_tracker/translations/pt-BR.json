@@ -1,0 +1,154 @@
+{
+  "title": "Rastreador de atividades",
+  "config": {
+    "step": {
+      "user": {
+        "title": "O que você quer acompanhar?",
+        "description": "Um monitor observa uma regra de atividade e cria seu próprio dispositivo no Home Assistant. {monitor_examples}",
+        "data": {"monitor_type": "Como a atividade deve ser identificada?"},
+        "data_description": {"monitor_type": "Cada opção tem uma explicação curta. Escolha a que melhor corresponde à atividade que deseja medir."}
+      },
+      "source": {
+        "title": "Escolha a fonte da atividade",
+        "description": "{monitor_type_guidance}",
+        "data": {
+          "name": "Nome deste monitor",
+          "entity_id": "Entidade a observar",
+          "active_states": "Estados que indicam que a atividade está acontecendo",
+          "zone_entity_id": "Zona que conta como atividade",
+          "person_entity_id": "Pessoa que identifica este monitor",
+          "area_id": "Área que conta como atividade",
+          "presence_entity_id": "Sensor que detecta presença",
+          "value_source": "Onde ler o aplicativo",
+          "value_attribute": "Atributo que contém o ID do aplicativo",
+          "label_attribute": "Atributo que contém o nome do aplicativo (opcional)"
+        },
+        "data_description": {
+          "name": "Um nome claro para o dispositivo e as entidades deste monitor, por exemplo, “TV da sala” ou “Visitas ao barbeiro”.",
+          "entity_id": "A entidade cujo estado será observado. O Rastreador de atividades nunca a altera.",
+          "active_states": "Informe os valores exatos dos estados separados por vírgulas, por exemplo: on, playing, paused. Mudar entre esses valores mantém uma única sessão aberta.",
+          "zone_entity_id": "Somente esta zona conta como atividade. Casa, fora de casa e todas as outras zonas não contam.",
+          "person_entity_id": "Usada apenas para identificar e nomear. O sensor de presença selecionado é a fonte que determina a atividade.",
+          "area_id": "Usada para identificar e nomear a área. Uma área sozinha não informa quem está presente.",
+          "presence_entity_id": "O sensor binário que informa se a pessoa selecionada está na área escolhida. Normalmente ele está ativo quando o estado é on.",
+          "value_source": "Use Estado da entidade quando ele for o identificador do aplicativo. Use Atributo da entidade quando o identificador estiver armazenado em um atributo.",
+          "value_attribute": "Obrigatório ao usar um atributo. Quando disponível, prefira um identificador estável, como o nome do pacote.",
+          "label_attribute": "Nome amigável opcional mostrado no Home Assistant. Alterar este nome não cria um aplicativo rastreado diferente."
+        }
+      },
+      "behavior": {
+        "title": "Defina o comportamento das sessões",
+        "description": "Estas escolhas se aplicam somente a este monitor. Elas determinam quais atividades concluídas são mantidas e como interrupções curtas são tratadas.",
+        "data": {
+          "retention_days": "Manter relatórios por (dias)",
+          "minimum_session_seconds": "Ignorar sessões menores que (segundos)",
+          "unavailable_behavior": "Se a fonte ficar indisponível",
+          "unavailable_tolerance_seconds": "Aguardar antes de tratar fonte indisponível (segundos)",
+          "merge_gap_seconds": "Ignorar pausas inativas menores que (segundos)"
+        },
+        "data_description": {
+          "retention_days": "Quantidade de dias de calendário para manter resumos diários compactos. O mínimo é 7 dias; resumos mais antigos são excluídos durante a limpeza.",
+          "minimum_session_seconds": "Sessões concluídas menores que esta quantidade de segundos são descartadas. Use 0 para manter todas as sessões.",
+          "unavailable_behavior": "Escolha se uma fonte indisponível ou desconhecida encerra a atividade, aguarda brevemente ou registra um período como tempo desconhecido.",
+          "unavailable_tolerance_seconds": "Por quanto tempo uma fonte indisponível pode permanecer pendente antes de aplicar o comportamento escolhido. Use 0 para aplicar imediatamente.",
+          "merge_gap_seconds": "Para pequenas pausas inativas observadas, como ruído de GPS. A pausa não é atividade. Use 0 para encerrar a sessão imediatamente."
+        }
+      },
+      "periods": {
+        "title": "Escolha os períodos dos relatórios",
+        "description": "Selecione um ou mais períodos para os sensores de relatório. Um período móvel usa datas locais do calendário, não uma quantidade exata de blocos de 24 horas.",
+        "data": {"periods": "Períodos de calendário para relatar", "rolling_days": "Períodos móveis extras (dias)"},
+        "data_description": {
+          "periods": "Hoje começa à meia-noite local. A semana e o mês atuais seguem o calendário local do Home Assistant.",
+          "rolling_days": "Valores inteiros positivos opcionais separados por vírgulas, por exemplo: 7, 30, 35. “35” significa hoje mais as 34 datas locais anteriores."
+        }
+      },
+      "metrics": {
+        "title": "Escolha os sensores a criar",
+        "description": "Somente as métricas selecionadas criam entidades. Escolha as perguntas que você realmente quer responder.",
+        "data": {"enabled_metrics": "Relatórios e sensores a criar"},
+        "data_description": {"enabled_metrics": "As métricas de duração e de quantidade de sessões são criadas para cada período selecionado. As métricas da sessão atual e da sessão mais recente criam uma entidade cada."}
+      },
+      "review": {
+        "title": "Revise este monitor",
+        "description": "Criar {name} usando {source}. Ele terá {metrics} tipo(s) de métrica selecionado(s) nestes períodos: {periods}. Você poderá alterar o comportamento das sessões depois em Configurar."
+      }
+    },
+    "error": {
+      "required": "Informe pelo menos um valor antes de continuar.",
+      "invalid_rolling_days": "Use apenas números inteiros positivos separados por vírgulas, por exemplo: 7, 30, 35."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ajuste o comportamento das sessões",
+        "description": "As alterações aqui se aplicam a observações futuras. Reduzir a retenção remove resumos diários antigos durante a limpeza.",
+        "data": {
+          "retention_days": "Manter relatórios por (dias)",
+          "minimum_session_seconds": "Ignorar sessões menores que (segundos)",
+          "unavailable_behavior": "Se a fonte ficar indisponível",
+          "unavailable_tolerance_seconds": "Aguardar antes de tratar fonte indisponível (segundos)",
+          "merge_gap_seconds": "Ignorar pausas inativas menores que (segundos)"
+        },
+        "data_description": {
+          "retention_days": "Quantidade de dias de calendário a manter. Um período de relatório maior que este valor não poderá ser confiável.",
+          "minimum_session_seconds": "Descarta sessões concluídas menores que esta duração. Defina 0 para manter todas as sessões.",
+          "unavailable_behavior": "Como uma fonte desconhecida ou indisponível afeta a sessão em andamento.",
+          "unavailable_tolerance_seconds": "Aguarda esta quantidade de segundos antes de aplicar o comportamento para fonte indisponível.",
+          "merge_gap_seconds": "Trata uma breve pausa inativa observada como parte de uma única visita ou uso. A pausa é excluída da duração."
+        }
+      }
+    }
+  },
+  "selector": {
+    "monitor_type": {
+      "options": {
+        "entity_state": "Estado da entidade — acompanha uma entidade enquanto ela estiver nos estados selecionados.",
+        "zone": "Pessoa ou dispositivo em uma zona — acompanha visitas a uma zona do Home Assistant.",
+        "area_presence": "Pessoa em uma área interna — usa um sensor binário de presença para uma área.",
+        "foreground_application": "Aplicativo em primeiro plano — acompanha o aplicativo informado atualmente por uma entidade.",
+        "generic": "Regra de estado personalizada — acompanha qualquer entidade usando os estados ativos selecionados."
+      }
+    },
+    "application_value_source": {
+      "options": {
+        "state": "Estado da entidade — o valor do aplicativo é o estado da entidade.",
+        "attribute": "Atributo da entidade — o valor do aplicativo está armazenado em um atributo."
+      }
+    },
+    "report_period": {
+      "options": {
+        "current_day": "Hoje — da meia-noite local até agora.",
+        "current_week": "Semana atual — usa o calendário local do Home Assistant.",
+        "current_month": "Mês atual — usa o calendário local do Home Assistant."
+      }
+    },
+    "metric": {
+      "options": {
+        "total_duration": "Duração total da atividade",
+        "session_count": "Quantidade de sessões",
+        "current_session_duration": "Duração da sessão atual",
+        "last_session_duration": "Duração da sessão concluída mais recente",
+        "last_session_start": "Início da sessão concluída mais recente",
+        "last_session_end": "Fim da sessão concluída mais recente",
+        "days_since_last_session": "Dias desde a sessão concluída mais recente",
+        "average_daily_duration": "Duração média da atividade por dia",
+        "average_session_duration": "Duração média das sessões",
+        "longest_session_duration": "Duração da sessão mais longa",
+        "shortest_session_duration": "Duração da sessão mais curta",
+        "first_activity_time": "Primeiro horário de atividade hoje",
+        "last_activity_time": "Último horário de atividade hoje",
+        "weekday_highest_total": "Dia da semana com mais atividade",
+        "unknown_duration": "Tempo cujo estado de atividade é desconhecido"
+      }
+    },
+    "unavailable_behavior": {
+      "options": {
+        "end": "Encerrar a sessão — interrompe a atividade quando a fonte fica indisponível.",
+        "pending": "Manter pendente — aguarda a fonte voltar antes de decidir.",
+        "unknown": "Marcar o tempo como desconhecido — preserva o intervalo como incerto."
+      }
+    }
+  }
+}

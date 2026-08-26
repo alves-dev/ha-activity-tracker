@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock
 from custom_components.activity_tracker.config_flow import (
     ActivityTrackerConfigFlow,
     _rolling_periods,
-    _select_options,
     _split_states,
 )
 from custom_components.activity_tracker.const import (
@@ -84,12 +83,3 @@ async def test_config_flow_reports_attribute_and_rolling_input_errors() -> None:
         {CONF_PERIODS: ["current_day"], "rolling_days": "7, no"}
     )
     assert result["errors"] == {"rolling_days": "invalid_rolling_days"}
-
-
-def test_select_options_keep_values_and_show_human_labels() -> None:
-    options = _select_options(("entity_state", "total_duration", "unknown"))
-    assert options == [
-        {"value": "entity_state", "label": "Entity is in one of several active states"},
-        {"value": "total_duration", "label": "Total activity duration"},
-        {"value": "unknown", "label": "Mark the interval as unknown"},
-    ]
