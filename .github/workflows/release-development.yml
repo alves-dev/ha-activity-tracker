@@ -8,23 +8,27 @@ permissions:
   contents: write
 
 concurrency:
-  group: activity-tracker-development-${{ github.ref }}
+  group: ha-activity-tracker-development-release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          fetch-depth: 0
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Read development version
         id: version
-        run: echo "value=$(jq -r '.version' custom_components/activity_tracker/manifest.json)-dev" >> "$GITHUB_OUTPUT"
-      - name: Delete existing development release
-        run: gh release delete "v${DEV_VERSION}" --yes || true
+        run: |
+          version="$(jq -r '.version // empty' custom_components/activity_tracker/manifest.json)"
+          test -n "${version}" || { echo "The integration manifest does not define a version." >&2; exit 1; }
+          echo "value=${version%-dev}-dev" >> "$GITHUB_OUTPUT"
+      - name: Replace existing development release and tag
+        run: |
+          gh release delete "v${DEV_VERSION}" --yes --cleanup-tag || true
+          git push origin --delete "v${DEV_VERSION}" || true
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DEV_VERSION: ${{ steps.version.outputs.value }}
       - name: Create or update development tag
         run: |
@@ -32,13 +36,12 @@ jobs:
           git config user.email "github-actions@github.com"
           git tag -f "v${{ steps.version.outputs.value }}"
           git push origin --force "v${{ steps.version.outputs.value }}"
-      - name: Create development prerelease
-        run: |
-          gh release create "v${DEV_VERSION}" \
-            --target "${GITHUB_SHA}" \
-            --title "v${DEV_VERSION}" \
-            --notes "Development release from develop." \
-            --prerelease
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          tag_name: v${{ steps.version.outputs.value }}
+          name: v${{ steps.version.outputs.value }}
+          body: This is a development release from develop.
+          prerelease: true
         env:
-          GH_TOKEN: ${{ github.token }}
-          DEV_VERSION: ${{ steps.version.outputs.value }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
