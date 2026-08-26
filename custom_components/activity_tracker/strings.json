@@ -48,14 +48,16 @@
           "minimum_session_seconds": "Ignore sessions shorter than (seconds)",
           "unavailable_behavior": "If the source becomes unavailable",
           "unavailable_tolerance_seconds": "Wait before handling an unavailable source (seconds)",
-          "merge_gap_seconds": "Ignore inactive gaps shorter than (seconds)"
+          "merge_gap_seconds": "Ignore inactive gaps shorter than (seconds)",
+          "import_recorder_history": "Import previous history from Recorder"
         },
         "data_description": {
           "retention_days": "Number of calendar days to keep compact daily summaries. The minimum is 7 days; older summaries are deleted during cleanup.",
           "minimum_session_seconds": "Completed sessions shorter than this many seconds are discarded. Use 0 to keep every completed session.",
           "unavailable_behavior": "Choose whether an unavailable or unknown source ends activity, remains pending briefly, or is reported as unknown time.",
           "unavailable_tolerance_seconds": "How long an unavailable source may remain pending before the selected unavailable behavior applies. Use 0 to apply it immediately.",
-          "merge_gap_seconds": "For brief observed inactive gaps such as GPS noise. The gap itself is not activity. Use 0 to end the session immediately."
+          "merge_gap_seconds": "For brief observed inactive gaps such as GPS noise. The gap itself is not activity. Use 0 to end the session immediately.",
+          "import_recorder_history": "Rebuild retained daily summaries from the source entity's existing Recorder history. This can take a moment and starts from the configured retention period."
         }
       },
       "periods": {
@@ -93,22 +95,44 @@
   "options": {
     "step": {
       "init": {
-        "title": "Adjust session behavior",
-        "description": "Changes here apply to future observations. Reducing retention removes older daily summaries during cleanup.",
+        "title": "Edit monitor",
+        "description": "Update the activity rule, source, reports, sensors, and session behavior. At the end, choose what to do with existing history.",
         "data": {
-          "retention_days": "Keep reports for (days)",
-          "minimum_session_seconds": "Ignore sessions shorter than (seconds)",
-          "unavailable_behavior": "If the source becomes unavailable",
-          "unavailable_tolerance_seconds": "Wait before handling an unavailable source (seconds)",
-          "merge_gap_seconds": "Ignore inactive gaps shorter than (seconds)"
+          "monitor_type": "How should activity be detected?"
         },
         "data_description": {
-          "retention_days": "Number of calendar days to retain. A longer report period cannot be reliable if it exceeds this value.",
-          "minimum_session_seconds": "Discard completed sessions shorter than this duration. Set to 0 to keep all completed sessions.",
-          "unavailable_behavior": "How an unknown or unavailable source affects the in-progress session.",
-          "unavailable_tolerance_seconds": "Wait this many seconds before applying the unavailable behavior.",
-          "merge_gap_seconds": "Treat a brief observed inactive interval as part of one visit or use session. The gap is excluded from duration."
+          "monitor_type": "You may change the monitor type as well as its source. Changing the rule can make existing history incomparable."
         }
+      },
+      "source": {
+        "title": "Choose the activity source",
+        "description": "{monitor_type_guidance}",
+        "data": {"name": "Name this monitor", "entity_id": "Entity to watch", "active_states": "States that mean the activity is happening", "zone_entity_id": "Zone that counts as activity", "person_entity_id": "Person to identify this monitor", "area_id": "Area that counts as activity", "presence_entity_id": "Sensor that detects presence", "value_source": "Where to read the application", "value_attribute": "Attribute containing the application ID", "label_attribute": "Attribute containing the application name (optional)"},
+        "data_description": {"name": "A clear name used for this monitor device and its entities.", "entity_id": "The entity whose state is observed. Activity Tracker never changes it.", "active_states": "Enter exact state values separated by commas. Moving between these values keeps one session open.", "zone_entity_id": "Only this zone counts as activity.", "person_entity_id": "Used for identity and naming only. The selected presence sensor determines activity.", "area_id": "Used for the area identity and name. An area alone does not report who is present.", "presence_entity_id": "The binary sensor that reports whether the selected person is in the selected area.", "value_source": "Choose whether the application identifier comes from the entity state or one of its attributes.", "value_attribute": "Required when the application identifier is stored in an attribute.", "label_attribute": "Optional friendly application name shown in Home Assistant."}
+      },
+      "behavior": {
+        "title": "Choose session behavior",
+        "description": "These choices apply to future observations for this monitor.",
+        "data": {"retention_days": "Keep reports for (days)", "minimum_session_seconds": "Ignore sessions shorter than (seconds)", "unavailable_behavior": "If the source becomes unavailable", "unavailable_tolerance_seconds": "Wait before handling an unavailable source (seconds)", "merge_gap_seconds": "Ignore inactive gaps shorter than (seconds)"},
+        "data_description": {"retention_days": "Number of calendar days to retain. A longer report period cannot be reliable if it exceeds this value.", "minimum_session_seconds": "Discard completed sessions shorter than this duration. Set to 0 to keep all completed sessions.", "unavailable_behavior": "How an unknown or unavailable source affects the in-progress session.", "unavailable_tolerance_seconds": "Wait this many seconds before applying the unavailable behavior.", "merge_gap_seconds": "Treat a brief observed inactive interval as part of one visit or use session. The gap is excluded from duration."}
+      },
+      "periods": {
+        "title": "Choose report periods",
+        "description": "Select one or more periods for report sensors.",
+        "data": {"periods": "Calendar periods to report", "rolling_days": "Extra rolling periods (days)"},
+        "data_description": {"periods": "Today starts at local midnight. Current week and month follow Home Assistant's local calendar.", "rolling_days": "Optional positive whole-day values separated by commas, for example: 7, 30, 35."}
+      },
+      "metrics": {
+        "title": "Choose sensors to create",
+        "description": "Only selected metrics create entities.",
+        "data": {"enabled_metrics": "Reports and sensors to create"},
+        "data_description": {"enabled_metrics": "Duration and session-count metrics are created for every selected period. Current and latest-session metrics create one entity each."}
+      },
+      "history": {
+        "title": "Choose what to do with history",
+        "description": "Use reimport when the changed rule should be applied to the available Recorder history. It replaces summaries within the retention period.",
+        "data": {"history_action": "Existing history"},
+        "data_description": {"history_action": "Keep preserves current summaries; clear deletes them; reimport rebuilds them using the configured source and Recorder history."}
       }
     }
   },
@@ -159,6 +183,13 @@
         "end": "End the session — stop activity when the source is unavailable.",
         "pending": "Keep it pending — wait for the source to return before deciding.",
         "unknown": "Mark the time as unknown — preserve the interval as uncertain."
+      }
+    },
+    "history_action": {
+      "options": {
+        "keep": "Keep existing history — use the new rule only for future activity.",
+        "clear": "Clear existing history — start collecting again now.",
+        "reimport": "Reimport from Recorder — rebuild retained history with the new rule."
       }
     }
   }
