@@ -4,8 +4,8 @@
   "codeowners": ["@alves-dev"],
   "config_flow": true,
   "documentation": "https://github.com/alves-dev/ha-activity-tracker",
-  "issue_tracker": "https://github.com/alves-dev/ha-activity-tracker/issues",
   "iot_class": "local_push",
+  "issue_tracker": "https://github.com/alves-dev/ha-activity-tracker/issues",
   "requirements": [],
   "version": "2026.8.0"
 }
