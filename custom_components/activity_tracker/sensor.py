@@ -39,7 +39,6 @@ from .const import (
     METRIC_TOTAL_DURATION,
     METRIC_UNKNOWN_DURATION,
     METRIC_WEEKDAY_MAX,
-    OPT_RETENTION_DAYS,
 )
 from .models import format_duration
 from .runtime import ActivityTrackerRuntime
@@ -110,26 +109,34 @@ class ActivityMetricSensor(SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         _, attributes = self._value_and_attributes()
+        if self._period:
+            _, availability = self._runtime.period_availability(self._period)
+            attributes.update(availability)
         return attributes
 
     @property
     def available(self) -> bool:
-        if self._period and self._period.startswith("rolling_days:"):
-            required = int(self._period.split(":", 1)[1])
-            if required > self._runtime.entry.options.get(OPT_RETENTION_DAYS, 90):
-                return False
-        return True
+        if getattr(self._runtime, "storage_error", None) is not None:
+            return False
+        return not self._period or self._runtime.period_availability(self._period)[0]
 
     def _value_and_attributes(  # noqa: PLR0911, PLR0912
         self,
     ) -> tuple[Any, dict[str, Any]]:
         if self._metric == METRIC_CURRENT_SESSION_DURATION:
             session = self._runtime.session
-            seconds = (
-                (datetime.now().astimezone() - session.started_at).total_seconds()
-                if session
-                else 0
-            )
+            seconds = 0
+            if session:
+                seconds = getattr(session, "active_seconds", 0)
+                segment_started = getattr(session, "active_segment_started_at", None)
+                if segment_started is not None:
+                    seconds += (
+                        datetime.now().astimezone() - segment_started
+                    ).total_seconds()
+                elif seconds == 0 and getattr(session, "state", "active") == "active":
+                    seconds = (
+                        datetime.now().astimezone() - session.started_at
+                    ).total_seconds()
             return seconds, {"formatted": format_duration(seconds)}
         last = self._runtime.last_completed
         if self._metric.startswith("last_session"):

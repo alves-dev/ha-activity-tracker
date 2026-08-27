@@ -15,11 +15,20 @@ Users need concise answers to both current and historical questions about activi
 - [ ] Current activity and latest completed activity information are available when relevant.
 - [ ] A report indicates when a requested rolling range exceeds retained history.
 
+## Delivered Behavior (2026-08-27)
+
+- [x] Reports distinguish observed-to-date values from periods without sufficient
+  complete history, with a user-actionable reason.
+- [x] Week and rolling-day reports use the available Home Assistant local calendar
+  configuration, with Monday as the documented platform fallback.
+
 ## Related
 
 - [Project Intent](project-intent.md)
 - [Decision: Home Assistant Config-Entry Integration](../decisions/002-home-assistant-integration-architecture.md)
 - [Decision: Compact Daily Summary Storage](../decisions/004-compact-daily-summary-storage.md)
+- [Decision: Data Quality and Period Completeness](../decisions/007-data-quality-and-period-completeness.md)
+- [Decision: Calendar Boundaries and Local Time](../decisions/009-calendar-boundaries.md)
 - [Pattern: Selected Metric Entity Factory](../knowledge/patterns/selected-metric-entity-factory.md)
 
 ## Status

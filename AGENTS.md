@@ -24,6 +24,7 @@ Before starting work, load relevant context:
 - `@context/decisions/*.md` (relevant technical decisions)
 - `@context/knowledge/patterns/*.md` (patterns to follow)
 - `@context/.context-mesh-framework.md` (framework rules)
+- `@context/evolution/*-implementation-plan.md` (an active proposed plan, when present)
 
 ## Project Structure
 

@@ -26,6 +26,7 @@ Outcomes to be documented as project evolves.
 - [Feature: Flexible Activity Monitoring](../intent/feature-flexible-activity-monitoring.md)
 - [Feature: Foreground Application Insights](../intent/feature-foreground-application-insights.md)
 - [Decision: Compact Daily Summary Storage](004-compact-daily-summary-storage.md)
+- [Decision: Interruption and Session State Machine](006-interruption-and-session-state-machine.md)
 - [Pattern: Activity State Classification](../knowledge/patterns/activity-state-classification.md)
 - [Pattern: Calendar-Day Session Aggregation](../knowledge/patterns/calendar-day-session-aggregation.md)
 

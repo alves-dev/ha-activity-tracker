@@ -56,6 +56,7 @@ def _runtime() -> SimpleNamespace:
         },
         daily_summaries={now.date().isoformat(): summary},
         signal="test",
+        period_availability=lambda _period: (True, {}),
         period_summaries=lambda _period: (
             [summary],
             now.replace(hour=0, minute=0),
@@ -94,8 +95,13 @@ def test_metric_sensors_cover_period_current_and_latest_values() -> None:
 
 def test_metric_availability_weekday_and_application_values() -> None:
     runtime = _runtime()
+    runtime.period_availability = lambda _period: (
+        False,
+        {"reason": "retention_limit"},
+    )
     rolling = ActivityMetricSensor(runtime, METRIC_TOTAL_DURATION, "rolling_days:91")
     assert rolling.available is False
+    assert rolling.extra_state_attributes["reason"] == "retention_limit"
     weekday = ActivityMetricSensor(runtime, METRIC_WEEKDAY_MAX)
     assert weekday.native_value == datetime.now().astimezone().strftime("%A").lower()
     current = CurrentApplicationSensor(runtime)

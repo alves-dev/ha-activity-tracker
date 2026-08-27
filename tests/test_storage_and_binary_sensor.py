@@ -26,9 +26,29 @@ async def test_storage_load_save_and_remove() -> None:
         loaded = await storage.async_load()
         assert loaded["daily_summaries"] == {}
         await storage.async_save({"daily_summaries": {}})
-        assert store.async_save.await_args.args[0]["version"] == 1
+        assert store.async_save.await_args.args[0]["version"] == 2
         await storage.async_remove()
         store.async_remove.assert_awaited_once()
+
+
+async def test_storage_migrates_a_v1_checkpoint_without_resetting_history() -> None:
+    hass = SimpleNamespace()
+    with patch("custom_components.activity_tracker.storage.Store") as store_class:
+        store = store_class.return_value
+        storage = ActivityTrackerStorage(hass, "entry")
+        store.async_load = AsyncMock(
+            return_value={
+                "version": 1,
+                "daily_summaries": {"2026-08-27": {"total_seconds": 60}},
+                "checkpoint": {"started_at": "2026-08-27T10:00:00+00:00"},
+            }
+        )
+
+        loaded = await storage.async_load()
+
+    assert loaded["version"] == 2
+    assert loaded["daily_summaries"]["2026-08-27"]["total_seconds"] == 60
+    assert loaded["checkpoint"]["state"] == "active"
 
 
 async def test_binary_sensor_is_added_for_runtime_and_reports_activity() -> None:

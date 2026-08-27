@@ -17,6 +17,8 @@ from custom_components.activity_tracker.const import (
     CONF_VALUE_ATTRIBUTE,
     CONF_VALUE_SOURCE,
     CONF_ZONE_ENTITY_ID,
+    OPT_MERGE_GAP_SECONDS,
+    OPT_UNAVAILABLE_BEHAVIOR,
     TYPE_FOREGROUND_APPLICATION,
     TYPE_ZONE,
 )
@@ -129,6 +131,49 @@ async def test_short_sessions_are_discarded_and_old_data_is_cleaned() -> None:
     assert "2000-01-01" not in runtime._data["daily_summaries"]
 
 
+async def test_merge_gap_keeps_one_session_but_excludes_inactive_time() -> None:
+    runtime = _runtime()
+    runtime.entry.options[OPT_MERGE_GAP_SECONDS] = 30
+    runtime._notify = lambda: None
+    start = datetime.now().astimezone().replace(microsecond=0)
+
+    await runtime.async_process_state(State("input_boolean.x", "on"), start)
+    await runtime.async_process_state(
+        State("input_boolean.x", "off"), start + timedelta(seconds=10)
+    )
+    await runtime.async_process_state(
+        State("input_boolean.x", "on"), start + timedelta(seconds=20)
+    )
+    await runtime.async_process_state(
+        State("input_boolean.x", "off"), start + timedelta(seconds=40)
+    )
+    await runtime._async_minute_tick(start + timedelta(seconds=71))
+
+    assert runtime.session is None
+    assert runtime.last_completed["duration_seconds"] == 30
+    assert runtime.daily_summaries[start.date().isoformat()].total_seconds == 30
+
+
+async def test_unknown_unavailability_is_not_counted_as_activity() -> None:
+    runtime = _runtime()
+    runtime.entry.options[OPT_UNAVAILABLE_BEHAVIOR] = "unknown"
+    runtime._notify = lambda: None
+    start = datetime.now().astimezone().replace(microsecond=0)
+
+    await runtime.async_process_state(State("input_boolean.x", "on"), start)
+    await runtime.async_process_state(
+        State("input_boolean.x", STATE_UNAVAILABLE), start + timedelta(seconds=10)
+    )
+    await runtime.async_process_state(
+        State("input_boolean.x", "on"), start + timedelta(seconds=25)
+    )
+
+    summary = runtime.daily_summaries[start.date().isoformat()]
+    assert summary.total_seconds == 10
+    assert summary.unknown_seconds == 15
+    assert summary.complete is False
+
+
 async def test_recorder_import_rebuilds_daily_summaries() -> None:
     runtime = _runtime()
     now = datetime.now().astimezone().replace(microsecond=0)
@@ -199,3 +244,24 @@ def test_checkpoint_and_period_helpers_handle_valid_and_invalid_data() -> None:
     }
     summaries, _, _ = runtime.period_summaries("rolling_days:2")
     assert sum(summary.total_seconds for summary in summaries) == 11
+
+
+def test_rolling_availability_requires_complete_history() -> None:
+    runtime = _runtime()
+    runtime.entry.options["retention_days"] = 90
+    runtime._data = {
+        "daily_summaries": {
+            "2026-08-25": {"complete": True},
+            "2026-08-26": {"complete": False},
+        }
+    }
+
+    available, attributes = runtime.period_availability("rolling_days:3")
+
+    assert available is False
+    assert attributes == {
+        "required_days": 3,
+        "available_days": 1,
+        "available_from": "2026-08-25",
+        "reason": "insufficient_complete_history",
+    }

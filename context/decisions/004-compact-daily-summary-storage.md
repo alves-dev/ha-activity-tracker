@@ -26,6 +26,9 @@ Outcomes to be documented as project evolves.
 - [Feature: Activity Reporting](../intent/feature-activity-reporting.md)
 - [Feature: Durable Activity History](../intent/feature-durable-activity-history.md)
 - [Decision: Real-Time Session Accounting](003-real-time-session-accounting.md)
+- [Decision: Data Quality and Period Completeness](007-data-quality-and-period-completeness.md)
+- [Decision: Storage Migration and Import Safety](008-storage-migration-and-import-safety.md)
+- [Decision: Calendar Boundaries and Local Time](009-calendar-boundaries.md)
 - [Pattern: Calendar-Day Session Aggregation](../knowledge/patterns/calendar-day-session-aggregation.md)
 
 ## Status

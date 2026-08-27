@@ -15,11 +15,19 @@ Different household and device activities report their status in different ways.
 - [ ] State changes among configured active conditions remain part of the same activity.
 - [ ] A location monitor counts activity only in the location selected by the user.
 
+## Delivered Behavior (2026-08-27)
+
+- [x] Brief observed inactive gaps can remain one logical activity without being
+  counted as active duration.
+- [x] Source unavailability is reported according to the user's selected handling
+  policy and never silently counted as activity.
+
 ## Related
 
 - [Project Intent](project-intent.md)
 - [Decision: Home Assistant Config-Entry Integration](../decisions/002-home-assistant-integration-architecture.md)
 - [Decision: Real-Time Session Accounting](../decisions/003-real-time-session-accounting.md)
+- [Decision: Interruption and Session State Machine](../decisions/006-interruption-and-session-state-machine.md)
 - [Pattern: Activity State Classification](../knowledge/patterns/activity-state-classification.md)
 
 ## Status

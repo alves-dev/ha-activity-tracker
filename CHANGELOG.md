@@ -6,7 +6,7 @@ All user-relevant changes are documented in this file.
 
 ### Changed
 
-- xxx
+- Improved activity accounting across brief interruptions and unavailable sources.
 
 ## [2026.8.0] - 2026-08-26
 

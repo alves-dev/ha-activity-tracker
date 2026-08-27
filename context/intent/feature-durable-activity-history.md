@@ -15,11 +15,21 @@ Users can keep useful reports after normal history retention has expired, while 
 - [ ] Short completed activity can be excluded using a user-selected threshold.
 - [ ] Eligible users can request a rebuild from historical records.
 
+## Delivered Behavior (2026-08-27)
+
+- [x] Retained history remains safe through compatible storage upgrades; an
+  unrecoverable storage problem does not silently erase it.
+- [x] Imported and incomplete observation days are identified so complete-history
+  reports do not overstate their coverage.
+
 ## Related
 
 - [Project Intent](project-intent.md)
 - [Decision: Compact Daily Summary Storage](../decisions/004-compact-daily-summary-storage.md)
 - [Decision: Recorder History Reconstruction](../decisions/005-recorder-history-reconstruction.md)
+- [Decision: Data Quality and Period Completeness](../decisions/007-data-quality-and-period-completeness.md)
+- [Decision: Storage Migration and Import Safety](../decisions/008-storage-migration-and-import-safety.md)
+- [Decision: Calendar Boundaries and Local Time](../decisions/009-calendar-boundaries.md)
 - [Pattern: Calendar-Day Session Aggregation](../knowledge/patterns/calendar-day-session-aggregation.md)
 
 ## Status

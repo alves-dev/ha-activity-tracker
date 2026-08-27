@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta
 import logging
 from typing import Any
@@ -11,6 +12,7 @@ from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import Event, HomeAssistant, State, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import (
+    async_track_point_in_time,
     async_track_state_change_event,
     async_track_time_interval,
 )
@@ -26,9 +28,13 @@ from .const import (
     CONF_ZONE_ENTITY_ID,
     DEFAULT_MERGE_GAP_SECONDS,
     DEFAULT_MINIMUM_SESSION_SECONDS,
+    DEFAULT_UNAVAILABLE_BEHAVIOR,
+    DEFAULT_UNAVAILABLE_TOLERANCE_SECONDS,
     OPT_IMPORT_RECORDER_HISTORY,
     OPT_MERGE_GAP_SECONDS,
     OPT_MINIMUM_SESSION_SECONDS,
+    OPT_UNAVAILABLE_BEHAVIOR,
+    OPT_UNAVAILABLE_TOLERANCE_SECONDS,
     TYPE_AREA_PRESENCE,
     TYPE_FOREGROUND_APPLICATION,
     TYPE_ZONE,
@@ -51,7 +57,13 @@ class ActivityTrackerRuntime:
         self._data: dict[str, Any] = {}
         self._session: Session | None = None
         self._unsubscribers: list[callback] = []
+        self._deadline_unsubscribe: callback | None = None
+        self._is_setup = False
         self._last_completed: dict[str, Any] | None = None
+        self._unknown_started_at: datetime | None = None
+        self._mutation_lock = asyncio.Lock()
+        self._storage_error: str | None = None
+        self._last_cleanup_date = None
 
     @property
     def signal(self) -> str:
@@ -66,13 +78,26 @@ class ActivityTrackerRuntime:
         return self._last_completed
 
     @property
+    def storage_error(self) -> str | None:
+        """Return a redacted storage failure reason, if loading was unsafe."""
+        return self._storage_error
+
+    @property
     def daily_summaries(self) -> dict[str, DailySummary]:
         raw = self._data.setdefault("daily_summaries", {})
         return {date: DailySummary.from_dict(value) for date, value in raw.items()}
 
     async def async_setup(self) -> None:
         """Restore data, resume safely, and subscribe to source state changes."""
-        self._data = await self._storage.async_load()
+        try:
+            self._data = await self._storage.async_load()
+        except ValueError:
+            self._storage_error = "storage_migration_failed"
+            _LOGGER.exception(
+                "Unable to load Activity Tracker storage for %s", self.entry.title
+            )
+            self._data = {"daily_summaries": {}, "applications": {}}
+            return
         if self.entry.options.get(OPT_IMPORT_RECORDER_HISTORY):
             try:
                 await self.async_import_recorder_history()
@@ -85,6 +110,12 @@ class ActivityTrackerRuntime:
                 options[OPT_IMPORT_RECORDER_HISTORY] = False
                 self.hass.config_entries.async_update_entry(self.entry, options=options)
         self._last_completed = self._data.get("last_completed_session")
+        raw_unknown_started = self._data.get("unknown_started_at")
+        if isinstance(raw_unknown_started, str):
+            try:
+                self._unknown_started_at = datetime.fromisoformat(raw_unknown_started)
+            except ValueError:
+                self._unknown_started_at = None
         checkpoint = self._data.get("checkpoint")
         if isinstance(checkpoint, dict):
             self._session = self._session_from_checkpoint(checkpoint)
@@ -104,15 +135,18 @@ class ActivityTrackerRuntime:
         state = self.hass.states.get(entity_id) if entity_id else None
         # A prior process could not observe the outage: close at its last observation.
         if self._session is not None:
-            await self._async_finish_session(self._session.last_observed_at)
+            await self._async_restore_checkpoint(now)
         if state is not None:
             await self.async_process_state(state, now)
+        self._is_setup = True
+        self._schedule_interruption_deadline()
 
     async def async_unload(self) -> None:
         """Persist the checkpoint and release listeners."""
         if self._session is not None:
             self._session.last_observed_at = datetime.now().astimezone()
         await self._async_save()
+        self._cancel_interruption_deadline()
         for unsub in self._unsubscribers:
             unsub()
         self._unsubscribers.clear()
@@ -122,10 +156,11 @@ class ActivityTrackerRuntime:
 
     async def async_clear_history(self) -> None:
         """Remove completed aggregates while retaining any in-progress checkpoint."""
-        self._data["daily_summaries"] = {}
-        self._data.pop("last_completed_session", None)
-        self._last_completed = None
-        await self._async_save()
+        async with self._mutation_lock:
+            self._data["daily_summaries"] = {}
+            self._data.pop("last_completed_session", None)
+            self._last_completed = None
+            await self._async_save()
 
     async def async_import_recorder_history(self) -> None:
         """Replace retained summaries with sessions reconstructed from Recorder."""
@@ -141,31 +176,37 @@ class ActivityTrackerRuntime:
         sessions = await async_get_sessions(
             self.hass, entity_id, start, now, self._classify_state
         )
-        summaries = self._data.setdefault("daily_summaries", {})
-        for date in list(summaries):
-            if start.date().isoformat() <= date <= now.date().isoformat():
-                summaries.pop(date)
-        self._last_completed = None
-        for session_start, session_end, app_id, app_label in sessions:
-            duration = (session_end - session_start).total_seconds()
-            minimum = self.entry.options.get(
-                OPT_MINIMUM_SESSION_SECONDS, DEFAULT_MINIMUM_SESSION_SECONDS
-            )
-            if not isinstance(minimum, int) or duration < minimum:
-                continue
-            session = Session(session_start, session_start, app_id, app_label)
-            self._commit_session(session, session_end, duration)
-            self._last_completed = {
-                "started_at": session_start.isoformat(),
-                "ended_at": session_end.isoformat(),
-                "duration_seconds": duration,
-                "quality": "imported",
-                "crossed_midnight": session_start.date() != session_end.date(),
-            }
-        self._data["last_completed_session"] = self._last_completed
-        self._data["last_recorder_import"] = now.isoformat()
-        await self._async_cleanup(now.date())
-        await self._async_save()
+        async with self._mutation_lock:
+            summaries = self._data.setdefault("daily_summaries", {})
+            for date in list(summaries):
+                if start.date().isoformat() <= date <= now.date().isoformat():
+                    summaries.pop(date)
+            self._last_completed = None
+            for session_start, session_end, app_id, app_label in sessions:
+                duration = (session_end - session_start).total_seconds()
+                minimum = self.entry.options.get(
+                    OPT_MINIMUM_SESSION_SECONDS, DEFAULT_MINIMUM_SESSION_SECONDS
+                )
+                if not isinstance(minimum, int) or duration < minimum:
+                    continue
+                session = Session(session_start, session_start, app_id, app_label)
+                self._commit_session(session, session_end, duration)
+                self._last_completed = {
+                    "started_at": session_start.isoformat(),
+                    "ended_at": session_end.isoformat(),
+                    "duration_seconds": duration,
+                    "quality": "imported",
+                    "crossed_midnight": session_start.date() != session_end.date(),
+                }
+            self._data["last_completed_session"] = self._last_completed
+            self._data["last_recorder_import"] = now.isoformat()
+            for boundary in (start.date().isoformat(), now.date().isoformat()):
+                if boundary in summaries:
+                    summary = DailySummary.from_dict(summaries[boundary])
+                    summary.complete = False
+                    summaries[boundary] = summary.as_dict()
+            await self._async_cleanup(now.date())
+            await self._async_save()
 
     @classmethod
     async def async_delete_entry_storage(
@@ -185,34 +226,204 @@ class ActivityTrackerRuntime:
             await self.async_process_state(state, datetime.now().astimezone())
 
     async def _async_minute_tick(self, now: datetime) -> None:
+        if self._last_cleanup_date != now.date():
+            await self._async_cleanup(now.date())
+            self._data["last_cleanup"] = now.isoformat()
+            self._last_cleanup_date = now.date()
+            await self._async_save()
         if self._session is not None:
-            self._session.last_observed_at = now
+            await self._async_expire_interruption(now)
             self._notify()
 
     async def async_process_state(self, state: State, now: datetime) -> None:
         """Apply a logical source observation. Public for focused tests."""
+        if self._storage_error is not None:
+            return
         active, app_id, app_label = self._classify_state(state)
+        unavailable = state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN)
+        if self._session is not None and now <= self._session.last_observed_at:
+            return
+        if not unavailable and self._unknown_started_at is not None:
+            await self._async_add_unknown(self._unknown_started_at, now)
+            self._unknown_started_at = None
         if active:
             if self._session is None:
-                self._session = Session(now, now, app_id, app_label)
+                self._session = Session(
+                    now, now, app_id, app_label, active_segment_started_at=now
+                )
                 await self._async_save()
             elif app_id is not None and app_id != self._session.application_id:
                 await self._async_finish_session(now)
-                self._session = Session(now, now, app_id, app_label)
+                self._session = Session(
+                    now, now, app_id, app_label, active_segment_started_at=now
+                )
+                await self._async_save()
+            elif (
+                self._session.state == "unavailable_pending"
+                and self._unavailable_behavior == "unknown"
+            ):
+                await self._async_add_unknown(self._session.paused_at, now)
+                await self._async_finish_session(self._session.paused_at)
+                self._session = Session(
+                    now, now, app_id, app_label, active_segment_started_at=now
+                )
                 await self._async_save()
             else:
+                if self._session.state != "active":
+                    self._session.state = "active"
+                    self._session.paused_at = None
+                    self._session.active_segment_started_at = now
                 self._session.last_observed_at = now
+                await self._async_save()
         elif self._session is not None:
-            gap = self.entry.options.get(
-                OPT_MERGE_GAP_SECONDS, DEFAULT_MERGE_GAP_SECONDS
-            )
-            if isinstance(gap, int) and gap > 0:
-                self._session.paused_at = now
-                self._session.last_observed_at = now
-                await self._async_save()
+            if unavailable:
+                await self._async_handle_unavailable(now)
             else:
-                await self._async_finish_session(now)
+                await self._async_handle_inactive(now)
+        self._schedule_interruption_deadline()
         self._notify()
+
+    @property
+    def _unavailable_behavior(self) -> str:
+        behavior = self.entry.options.get(
+            OPT_UNAVAILABLE_BEHAVIOR, DEFAULT_UNAVAILABLE_BEHAVIOR
+        )
+        return behavior if behavior in {"end", "pending", "unknown"} else "unknown"
+
+    def _interruption_tolerance(self, state: str) -> int:
+        option = (
+            OPT_MERGE_GAP_SECONDS
+            if state == "observed_inactive_pause"
+            else OPT_UNAVAILABLE_TOLERANCE_SECONDS
+        )
+        default = (
+            DEFAULT_MERGE_GAP_SECONDS
+            if state == "observed_inactive_pause"
+            else DEFAULT_UNAVAILABLE_TOLERANCE_SECONDS
+        )
+        value = self.entry.options.get(option, default)
+        return value if isinstance(value, int) and value > 0 else 0
+
+    async def _async_handle_inactive(self, now: datetime) -> None:
+        """Pause or close a session on a known inactive observation."""
+        assert self._session is not None
+        if self._session.state == "active":
+            self._accumulate_active_segment(self._session, now)
+            if self._interruption_tolerance("observed_inactive_pause") == 0:
+                await self._async_finish_session(now)
+                return
+            self._session.state = "observed_inactive_pause"
+            self._session.paused_at = now
+        self._session.last_observed_at = now
+        await self._async_save()
+
+    async def _async_handle_unavailable(self, now: datetime) -> None:
+        """Apply the user-selected policy to an unavailable observation."""
+        assert self._session is not None
+        if self._unavailable_behavior == "end":
+            await self._async_finish_session(now)
+            return
+        if self._unavailable_behavior == "unknown" and self._unknown_started_at is None:
+            self._unknown_started_at = now
+        if self._session.state == "active":
+            self._accumulate_active_segment(self._session, now)
+            self._session.state = "unavailable_pending"
+            self._session.paused_at = now
+        self._session.last_observed_at = now
+        if self._interruption_tolerance("unavailable_pending") == 0:
+            if self._unavailable_behavior == "unknown":
+                await self._async_add_unknown(self._session.paused_at, now)
+            await self._async_finish_session(self._session.paused_at)
+            return
+        await self._async_save()
+
+    async def _async_expire_interruption(self, now: datetime) -> None:
+        """Resolve a pause without treating the timer as a source observation."""
+        if self._session is None or self._session.state == "active":
+            return
+        paused_at = self._session.paused_at
+        if paused_at is None:
+            return
+        tolerance = self._interruption_tolerance(self._session.state)
+        if now < paused_at + timedelta(seconds=tolerance):
+            return
+        if (
+            self._session.state == "unavailable_pending"
+            and self._unavailable_behavior == "unknown"
+        ):
+            unknown_end = paused_at + timedelta(seconds=tolerance)
+            await self._async_add_unknown(paused_at, unknown_end)
+            self._unknown_started_at = unknown_end
+        await self._async_finish_session(paused_at)
+
+    async def _async_deadline_reached(self, now: datetime) -> None:
+        """Resolve an interruption at its configured deadline."""
+        self._deadline_unsubscribe = None
+        await self._async_expire_interruption(now)
+        self._schedule_interruption_deadline()
+        self._notify()
+
+    def _cancel_interruption_deadline(self) -> None:
+        if self._deadline_unsubscribe is not None:
+            self._deadline_unsubscribe()
+            self._deadline_unsubscribe = None
+
+    def _schedule_interruption_deadline(self) -> None:
+        """Schedule exact pause resolution after runtime setup."""
+        self._cancel_interruption_deadline()
+        if not self._is_setup or self._session is None:
+            return
+        if self._session.state == "active" or self._session.paused_at is None:
+            return
+        tolerance = self._interruption_tolerance(self._session.state)
+        deadline = self._session.paused_at + timedelta(seconds=tolerance)
+        self._deadline_unsubscribe = async_track_point_in_time(
+            self.hass, self._async_deadline_reached, deadline
+        )
+
+    async def _async_restore_checkpoint(self, now: datetime) -> None:
+        """Close a prior-process checkpoint without inferring downtime activity."""
+        assert self._session is not None
+        checkpoint = self._session
+        if (
+            self._unavailable_behavior == "unknown"
+            and now > checkpoint.last_observed_at
+        ):
+            await self._async_add_unknown(checkpoint.last_observed_at, now)
+        await self._async_finish_session(checkpoint.last_observed_at)
+
+    def _accumulate_active_segment(self, session: Session, ended_at: datetime) -> None:
+        """Add a directly observed active segment to the compact checkpoint."""
+        started_at = session.active_segment_started_at
+        if started_at is None or ended_at <= started_at:
+            return
+        for date, part_start, part_end in split_interval(started_at, ended_at):
+            seconds = (part_end - part_start).total_seconds()
+            pending = session.pending_days.setdefault(
+                date,
+                {
+                    "total_seconds": 0.0,
+                    "first_active_at": part_start.timetz().isoformat(),
+                    "last_inactive_at": part_end.timetz().isoformat(),
+                },
+            )
+            pending["total_seconds"] += seconds
+            pending["last_inactive_at"] = part_end.timetz().isoformat()
+            session.active_seconds += seconds
+        session.active_segment_started_at = None
+
+    async def _async_add_unknown(
+        self, started_at: datetime | None, ended_at: datetime
+    ) -> None:
+        """Record an interval whose source state could not be observed."""
+        if started_at is None or ended_at <= started_at:
+            return
+        summaries = self._data.setdefault("daily_summaries", {})
+        for date, part_start, part_end in split_interval(started_at, ended_at):
+            summary = DailySummary.from_dict(summaries.get(date))
+            summary.unknown_seconds += (part_end - part_start).total_seconds()
+            summary.complete = False
+            summaries[date] = summary.as_dict()
 
     def _classify_state(self, state: State) -> tuple[bool, str | None, str | None]:
         monitor_type = self.entry.data.get(CONF_MONITOR_TYPE)
@@ -241,12 +452,14 @@ class ActivityTrackerRuntime:
     async def _async_finish_session(self, ended_at: datetime) -> None:
         if self._session is None:
             return
+        self._cancel_interruption_deadline()
         session = self._session
         self._session = None
         if ended_at <= session.started_at:
             await self._async_save()
             return
-        duration = (ended_at - session.started_at).total_seconds()
+        self._accumulate_active_segment(session, ended_at)
+        duration = session.active_seconds
         minimum = self.entry.options.get(
             OPT_MINIMUM_SESSION_SECONDS, DEFAULT_MINIMUM_SESSION_SECONDS
         )
@@ -269,6 +482,49 @@ class ActivityTrackerRuntime:
         self, session: Session, ended_at: datetime, duration: float
     ) -> None:
         summaries = self._data.setdefault("daily_summaries", {})
+        if session.pending_days:
+            for index, (date, pending) in enumerate(
+                sorted(session.pending_days.items())
+            ):
+                summary = DailySummary.from_dict(summaries.get(date))
+                seconds = float(pending["total_seconds"])
+                summary.total_seconds += seconds
+                summary.exact_seconds += seconds
+                if index == 0:
+                    summary.sessions_started += 1
+                    summary.first_active_at = (
+                        summary.first_active_at or pending.get("first_active_at")
+                    )
+                else:
+                    summary.continued_sessions += 1
+                summary.last_inactive_at = pending.get("last_inactive_at")
+                summary.longest_session_seconds = max(
+                    summary.longest_session_seconds, duration
+                )
+                summary.shortest_session_seconds = (
+                    duration
+                    if summary.shortest_session_seconds is None
+                    else min(summary.shortest_session_seconds, duration)
+                )
+                if session.application_id:
+                    app = summary.applications.setdefault(
+                        session.application_id,
+                        {
+                            "display_name": session.application_label
+                            or session.application_id,
+                            "total_seconds": 0,
+                            "sessions_started": 0,
+                            "longest_session_seconds": 0,
+                        },
+                    )
+                    app["total_seconds"] += seconds
+                    if index == 0:
+                        app["sessions_started"] += 1
+                    app["longest_session_seconds"] = max(
+                        app["longest_session_seconds"], duration
+                    )
+                summaries[date] = summary.as_dict()
+            return
         for index, (date, part_start, part_end) in enumerate(
             split_interval(session.started_at, ended_at)
         ):
@@ -323,6 +579,9 @@ class ActivityTrackerRuntime:
 
     async def _async_save(self) -> None:
         self._data["checkpoint"] = self._session.as_dict() if self._session else None
+        self._data["unknown_started_at"] = (
+            self._unknown_started_at.isoformat() if self._unknown_started_at else None
+        )
         await self._storage.async_save(self._data)
 
     def _session_from_checkpoint(self, raw: dict[str, Any]) -> Session | None:
@@ -346,7 +605,14 @@ class ActivityTrackerRuntime:
             days = max(1, int(period.split(":", 1)[1]))
             start_date = now.date() - timedelta(days=days - 1)
         elif period == "current_week":
-            start_date = now.date() - timedelta(days=now.weekday())
+            first_weekday = getattr(
+                getattr(self.hass, "config", None), "first_weekday", 0
+            )
+            if not isinstance(first_weekday, int) or not 0 <= first_weekday <= 6:
+                first_weekday = 0
+            start_date = now.date() - timedelta(
+                days=(now.weekday() - first_weekday) % 7
+            )
         elif period == "current_month":
             start_date = now.date().replace(day=1)
         else:
@@ -362,6 +628,41 @@ class ActivityTrackerRuntime:
             datetime.combine(start_date, datetime.min.time(), now.tzinfo),
             now,
         )
+
+    def period_availability(self, period: str) -> tuple[bool, dict[str, Any]]:
+        """Return whether a period has its required complete local-day history."""
+        if not period.startswith("rolling_days:"):
+            return True, {}
+        required = max(1, int(period.split(":", 1)[1]))
+        retention = self.entry.options.get("retention_days", 90)
+        retention = retention if isinstance(retention, int) else 90
+        now = datetime.now().astimezone()
+        summaries = self.daily_summaries
+        complete_dates = sorted(
+            date
+            for date, summary in summaries.items()
+            if (
+                summary.complete
+                and summary.rule_version == 1
+                and date != now.date().isoformat()
+            )
+        )
+        attributes: dict[str, Any] = {
+            "required_days": required,
+            "available_days": len(complete_dates),
+            "available_from": complete_dates[0] if complete_dates else None,
+        }
+        if required > retention:
+            attributes["reason"] = "retention_limit"
+            return False, attributes
+        if len(complete_dates) < required:
+            attributes["reason"] = "insufficient_complete_history"
+            return False, attributes
+        if self._storage_error is not None:
+            attributes["reason"] = self._storage_error
+            return False, attributes
+        attributes["period_end"] = now.isoformat()
+        return True, attributes
 
     def _notify(self) -> None:
         async_dispatcher_send(self.hass, self.signal)
