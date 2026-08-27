@@ -8,6 +8,16 @@
 - Validate integration structure: `python3 /path/to/home-assistant-integration-standards/scripts/validate_integration_structure.py .`
 - Local smoke test: copy `custom_components/activity_tracker` into a Home Assistant configuration directory, restart Home Assistant, add a monitor through the UI, and change the source state from Developer Tools.
 
+## Local Home Assistant Test Instance
+
+- Start it with `sh dev/start-ha.sh`; stop it with `sh dev/stop-ha.sh`.
+- Always stop the instance before copying integration files, then start it again.
+- The scripts manage their PID at `/tmp/ha-activity-tracker-home-assistant.pid`
+  and write logs to `/tmp/ha-activity-tracker-home-assistant.log`.
+- For exploratory tests, open `http://localhost:8123` and sign in with the
+  local-only test account `igor` / `dev`. These credentials must not be reused
+  outside this local test environment.
+
 ## Code Style
 
 - Use Python 3.14 syntax and Home Assistant async conventions.
@@ -37,6 +47,7 @@ root/
 │   ├── knowledge/
 │   ├── agents/
 │   └── evolution/
+├── dev/
 ├── custom_components/activity_tracker/
 ├── tests/
 └── docs/

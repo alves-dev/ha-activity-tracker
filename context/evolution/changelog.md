@@ -1,5 +1,15 @@
 # Changelog
 
+## [Developer Experience] - Local Home Assistant Control
+
+- Added `dev/start-ha.sh` and `dev/stop-ha.sh` to start and gracefully stop the
+  isolated local Home Assistant test instance, with its PID and logs kept under
+  `/tmp`.
+- Made both scripts POSIX `sh` compatible so they can be invoked with `sh` or
+  directly.
+- Documented the local instance lifecycle and exploratory-test access constraints
+  in `AGENTS.md`.
+
 ## [Current State] - Context Mesh Added
 
 ### Existing Features (documented)
