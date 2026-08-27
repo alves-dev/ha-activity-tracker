@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-08-27 — Recorder import reliability
+
+- Moved optional Recorder reconstruction to a post-startup background task.
+- Rebuilt only Recorder-backed dates while preserving retained summaries outside
+  that range, with idempotent replacement and partial boundary-day quality.
+- Recorded a compact import outcome with range, rebuilt/preserved days, processed
+  sessions, and safe warnings; historical foreground-app attributes now follow
+  the configured attribute selection.
+- Fixed the SonarQube workflow to use the project's canonical analysis endpoint.
+
 ## [Fix] - Zone Monitor State Matching
 
 - Corrected zone monitors to compare person and device-tracker states with the

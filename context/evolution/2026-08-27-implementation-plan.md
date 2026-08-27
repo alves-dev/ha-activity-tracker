@@ -224,11 +224,19 @@ mutation serialization.
 
 ### Validation
 
-- [ ] Reimporting the same range does not duplicate totals.
-- [ ] Existing summaries outside Recorder range remain unchanged.
-- [ ] Boundary days and unavailable Recorder cases are handled safely.
-- [ ] Failure or cancellation cannot corrupt stored data.
-- [ ] Result includes rebuilt/preserved days, processed sessions, range, and warnings.
+- [x] Reimporting the same range does not duplicate totals.
+- [x] Existing summaries outside Recorder range remain unchanged.
+- [x] Boundary days and unavailable Recorder cases are handled safely.
+- [x] Failure or cancellation cannot corrupt stored data.
+- [x] Result includes rebuilt/preserved days, processed sessions, range, and warnings.
+
+### Delivery Outcome (2026-08-27)
+
+Implemented and validated. Recorder imports are scheduled after setup, serialize
+their final replacement with other import/clear mutations, retain summaries
+outside the Recorder-backed range, mark imported boundary days partial, and
+persist a compact completed or failed result. Reimporting the same Recorder range
+replaces its prior aggregate rather than adding to it.
 
 ## Phase 5: Administrative UX and Diagnostics
 
@@ -282,5 +290,5 @@ This phase requires separate scope approval after phases 1–5, because its usef
 ## Status
 
 - **Created**: 2026-08-27
-- **Status**: Implemented — data-correctness slice delivered
-- **Note**: Phases 4–6 remain separate future work.
+- **Status**: Implemented — data-correctness and Recorder-import slices delivered
+- **Note**: Phases 5–6 remain separate future work.

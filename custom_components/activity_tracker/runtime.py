@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
+from copy import deepcopy
 from datetime import datetime, timedelta
 import logging
 from typing import Any
@@ -41,7 +43,7 @@ from .const import (
     update_signal,
 )
 from .models import DailySummary, Session, split_interval
-from .recorder_import import async_get_sessions
+from .recorder_import import async_get_import
 from .storage import ActivityTrackerStorage
 
 _LOGGER = logging.getLogger(__name__)
@@ -64,6 +66,7 @@ class ActivityTrackerRuntime:
         self._mutation_lock = asyncio.Lock()
         self._storage_error: str | None = None
         self._last_cleanup_date = None
+        self._recorder_import_task: asyncio.Task[None] | None = None
 
     @property
     def signal(self) -> str:
@@ -98,17 +101,6 @@ class ActivityTrackerRuntime:
             )
             self._data = {"daily_summaries": {}, "applications": {}}
             return
-        if self.entry.options.get(OPT_IMPORT_RECORDER_HISTORY):
-            try:
-                await self.async_import_recorder_history()
-            except Exception:  # Recorder may be disabled or unavailable at startup.
-                _LOGGER.exception(
-                    "Unable to import Recorder history for %s", self.entry.title
-                )
-            else:
-                options = dict(self.entry.options)
-                options[OPT_IMPORT_RECORDER_HISTORY] = False
-                self.hass.config_entries.async_update_entry(self.entry, options=options)
         self._last_completed = self._data.get("last_completed_session")
         raw_unknown_started = self._data.get("unknown_started_at")
         if isinstance(raw_unknown_started, str):
@@ -140,12 +132,19 @@ class ActivityTrackerRuntime:
             await self.async_process_state(state, now)
         self._is_setup = True
         self._schedule_interruption_deadline()
+        if self.entry.options.get(OPT_IMPORT_RECORDER_HISTORY):
+            self.async_schedule_recorder_import()
 
     async def async_unload(self) -> None:
         """Persist the checkpoint and release listeners."""
-        if self._session is not None:
-            self._session.last_observed_at = datetime.now().astimezone()
-        await self._async_save()
+        if self._recorder_import_task is not None:
+            self._recorder_import_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self._recorder_import_task
+        async with self._mutation_lock:
+            if self._session is not None:
+                self._session.last_observed_at = datetime.now().astimezone()
+            await self._async_save()
         self._cancel_interruption_deadline()
         for unsub in self._unsubscribers:
             unsub()
@@ -163,7 +162,7 @@ class ActivityTrackerRuntime:
             await self._async_save()
 
     async def async_import_recorder_history(self) -> None:
-        """Replace retained summaries with sessions reconstructed from Recorder."""
+        """Rebuild only the queried Recorder window without losing outer dates."""
         entity_id = self._source_entity_id
         if not entity_id:
             return
@@ -173,40 +172,126 @@ class ActivityTrackerRuntime:
         start = datetime.combine(
             now.date() - timedelta(days=retention - 1), datetime.min.time(), now.tzinfo
         )
-        sessions = await async_get_sessions(
+        recorder_import = await async_get_import(
             self.hass, entity_id, start, now, self._classify_state
         )
+        sessions = recorder_import.sessions
         async with self._mutation_lock:
-            summaries = self._data.setdefault("daily_summaries", {})
+            # Do all replacement work on a complete copy. A cancelled or failed
+            # Recorder query therefore cannot publish a partially rebuilt history.
+            replacement = deepcopy(self._data)
+            summaries = replacement.setdefault("daily_summaries", {})
+            usable_start = recorder_import.start
+            rebuilt_dates = {
+                date
+                for date in summaries
+                if (
+                    usable_start is not None
+                    and usable_start.date().isoformat()
+                    <= date
+                    <= now.date().isoformat()
+                )
+            }
+            preserved_days = len(summaries) - len(rebuilt_dates)
             for date in list(summaries):
-                if start.date().isoformat() <= date <= now.date().isoformat():
+                if date in rebuilt_dates:
                     summaries.pop(date)
-            self._last_completed = None
+            last_completed: dict[str, Any] | None = None
+            processed_sessions = 0
+            skipped_sessions = 0
             for session_start, session_end, app_id, app_label in sessions:
                 duration = (session_end - session_start).total_seconds()
                 minimum = self.entry.options.get(
                     OPT_MINIMUM_SESSION_SECONDS, DEFAULT_MINIMUM_SESSION_SECONDS
                 )
                 if not isinstance(minimum, int) or duration < minimum:
+                    skipped_sessions += 1
                     continue
                 session = Session(session_start, session_start, app_id, app_label)
-                self._commit_session(session, session_end, duration)
-                self._last_completed = {
+                self._commit_session(session, session_end, duration, summaries)
+                processed_sessions += 1
+                last_completed = {
                     "started_at": session_start.isoformat(),
                     "ended_at": session_end.isoformat(),
                     "duration_seconds": duration,
                     "quality": "imported",
                     "crossed_midnight": session_start.date() != session_end.date(),
                 }
-            self._data["last_completed_session"] = self._last_completed
-            self._data["last_recorder_import"] = now.isoformat()
-            for boundary in (start.date().isoformat(), now.date().isoformat()):
+            replacement["last_completed_session"] = last_completed
+            boundaries = (
+                (usable_start.date().isoformat(), now.date().isoformat())
+                if usable_start is not None
+                else ()
+            )
+            for boundary in boundaries:
                 if boundary in summaries:
                     summary = DailySummary.from_dict(summaries[boundary])
                     summary.complete = False
                     summaries[boundary] = summary.as_dict()
-            await self._async_cleanup(now.date())
-            await self._async_save()
+            cutoff = (now.date() - timedelta(days=retention - 1)).isoformat()
+            for date in list(summaries):
+                if date < cutoff:
+                    summaries.pop(date)
+            warnings: list[str] = []
+            if usable_start is None:
+                warnings.append("no_recorder_states_in_requested_range")
+            else:
+                warnings.append("import_boundary_days_are_partial")
+            if skipped_sessions:
+                warnings.append("sessions_below_minimum_duration_skipped")
+            result = {
+                "status": "completed",
+                "requested_at": now.isoformat(),
+                "completed_at": now.isoformat(),
+                "range": {
+                    "start": usable_start.isoformat() if usable_start else None,
+                    "end": now.isoformat(),
+                },
+                "rebuilt_days": len(rebuilt_dates),
+                "preserved_days": preserved_days,
+                "processed_sessions": processed_sessions,
+                "warnings": warnings,
+            }
+            replacement["last_recorder_import"] = result
+            await self._storage.async_save(replacement)
+            self._data = replacement
+            self._last_completed = last_completed
+
+    def async_schedule_recorder_import(self) -> None:
+        """Start the optional Recorder rebuild after normal startup is ready."""
+        if self._recorder_import_task is not None:
+            return
+        self._recorder_import_task = self.hass.async_create_background_task(
+            self._async_run_scheduled_recorder_import(),
+            f"Activity Tracker Recorder import {self.entry.entry_id}",
+        )
+
+    async def _async_run_scheduled_recorder_import(self) -> None:
+        """Run an import without making monitor startup depend on Recorder."""
+        try:
+            await self.async_import_recorder_history()
+        except asyncio.CancelledError:
+            raise
+        except Exception:  # Recorder can be disabled, unavailable, or slow.
+            _LOGGER.exception(
+                "Unable to import Recorder history for %s", self.entry.title
+            )
+            async with self._mutation_lock:
+                failed = deepcopy(self._data)
+                failed["last_recorder_import"] = {
+                    "status": "failed",
+                    "requested_at": datetime.now().astimezone().isoformat(),
+                    "warnings": ["recorder_unavailable"],
+                }
+                await self._storage.async_save(failed)
+                self._data = failed
+        else:
+            options = dict(self.entry.options)
+            options[OPT_IMPORT_RECORDER_HISTORY] = False
+            self.hass.config_entries.async_update_entry(self.entry, options=options)
+        finally:
+            self._recorder_import_task = None
+            self._notify()
 
     @classmethod
     async def async_delete_entry_storage(
@@ -226,17 +311,23 @@ class ActivityTrackerRuntime:
             await self.async_process_state(state, datetime.now().astimezone())
 
     async def _async_minute_tick(self, now: datetime) -> None:
-        if self._last_cleanup_date != now.date():
-            await self._async_cleanup(now.date())
-            self._data["last_cleanup"] = now.isoformat()
-            self._last_cleanup_date = now.date()
-            await self._async_save()
-        if self._session is not None:
-            await self._async_expire_interruption(now)
-            self._notify()
+        async with self._mutation_lock:
+            if self._last_cleanup_date != now.date():
+                await self._async_cleanup(now.date())
+                self._data["last_cleanup"] = now.isoformat()
+                self._last_cleanup_date = now.date()
+                await self._async_save()
+            if self._session is not None:
+                await self._async_expire_interruption(now)
+                self._notify()
 
     async def async_process_state(self, state: State, now: datetime) -> None:
         """Apply a logical source observation. Public for focused tests."""
+        async with self._mutation_lock:
+            await self._async_process_state(state, now)
+
+    async def _async_process_state(self, state: State, now: datetime) -> None:
+        """Apply an observation while the caller holds the mutation lock."""
         if self._storage_error is not None:
             return
         active, app_id, app_label = self._classify_state(state)
@@ -492,9 +583,14 @@ class ActivityTrackerRuntime:
         await self._async_save()
 
     def _commit_session(
-        self, session: Session, ended_at: datetime, duration: float
+        self,
+        session: Session,
+        ended_at: datetime,
+        duration: float,
+        summaries: dict[str, Any] | None = None,
     ) -> None:
-        summaries = self._data.setdefault("daily_summaries", {})
+        if summaries is None:
+            summaries = self._data.setdefault("daily_summaries", {})
         if session.pending_days:
             for index, (date, pending) in enumerate(
                 sorted(session.pending_days.items())

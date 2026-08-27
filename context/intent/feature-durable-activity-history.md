@@ -21,6 +21,9 @@ Users can keep useful reports after normal history retention has expired, while 
   unrecoverable storage problem does not silently erase it.
 - [x] Imported and incomplete observation days are identified so complete-history
   reports do not overstate their coverage.
+- [x] Recorder reconstruction runs after monitor startup, replaces only the
+  Recorder-backed date range, preserves retained outer summaries, and records a
+  compact result for safe reimport troubleshooting.
 
 ## Related
 

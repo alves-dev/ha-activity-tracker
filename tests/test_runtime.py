@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -23,7 +24,10 @@ from custom_components.activity_tracker.const import (
     TYPE_ZONE,
 )
 from custom_components.activity_tracker.models import Session
-from custom_components.activity_tracker.recorder_import import async_get_sessions
+from custom_components.activity_tracker.recorder_import import (
+    RecorderImport,
+    async_get_sessions,
+)
 from custom_components.activity_tracker.runtime import ActivityTrackerRuntime
 
 
@@ -186,11 +190,13 @@ async def test_recorder_import_rebuilds_daily_summaries() -> None:
     runtime = _runtime()
     now = datetime.now().astimezone().replace(microsecond=0)
     with patch(
-        "custom_components.activity_tracker.runtime.async_get_sessions",
+        "custom_components.activity_tracker.runtime.async_get_import",
         new=AsyncMock(
-            return_value=[
-                (now - timedelta(minutes=10), now - timedelta(minutes=5), None, None)
-            ]
+            return_value=RecorderImport(
+                [(now - timedelta(minutes=10), now - timedelta(minutes=5), None, None)],
+                now - timedelta(minutes=10),
+                now,
+            )
         ),
     ):
         await runtime.async_import_recorder_history()
@@ -198,7 +204,49 @@ async def test_recorder_import_rebuilds_daily_summaries() -> None:
     summary = runtime.daily_summaries[now.date().isoformat()]
     assert summary.total_seconds == 300
     assert runtime.last_completed["quality"] == "imported"
-    assert "last_recorder_import" in runtime._data
+    result = runtime._data["last_recorder_import"]
+    assert result["status"] == "completed"
+    assert result["processed_sessions"] == 1
+    assert result["range"]["start"] < result["range"]["end"]
+
+
+async def test_recorder_reimport_preserves_outer_dates_and_is_idempotent() -> None:
+    runtime = _runtime()
+    now = datetime.now().astimezone().replace(microsecond=0)
+    outer_date = (now.date() - timedelta(days=1)).isoformat()
+    runtime._data = {
+        "daily_summaries": {
+            outer_date: {"total_seconds": 42},
+            now.date().isoformat(): {"total_seconds": 999},
+        }
+    }
+    sessions = [
+        (now - timedelta(minutes=10), now - timedelta(minutes=5), None, None)
+    ]
+    with patch(
+        "custom_components.activity_tracker.runtime.async_get_import",
+        new=AsyncMock(
+            return_value=RecorderImport(sessions, now - timedelta(minutes=10), now)
+        ),
+    ):
+        await runtime.async_import_recorder_history()
+        await runtime.async_import_recorder_history()
+
+    assert runtime.daily_summaries[outer_date].total_seconds == 42
+    assert runtime.daily_summaries[now.date().isoformat()].total_seconds == 300
+    assert runtime._data["last_recorder_import"]["preserved_days"] == 1
+
+
+async def test_failed_recorder_query_does_not_replace_existing_history() -> None:
+    runtime = _runtime()
+    runtime._data = {"daily_summaries": {"2026-08-01": {"total_seconds": 42}}}
+    with patch(
+        "custom_components.activity_tracker.runtime.async_get_import",
+        new=AsyncMock(side_effect=RuntimeError("Recorder unavailable")),
+    ), suppress(RuntimeError):
+        await runtime.async_import_recorder_history()
+
+    assert runtime.daily_summaries["2026-08-01"].total_seconds == 42
 
 
 async def test_recorder_session_reconstruction_closes_and_splits_applications() -> None:
@@ -221,6 +269,48 @@ async def test_recorder_session_reconstruction_closes_and_splits_applications() 
 
     assert sessions == [(start, start + timedelta(minutes=2), None, None)]
     hass.async_add_executor_job.assert_awaited_once()
+
+
+async def test_recorder_reconstruction_uses_selected_application_attributes() -> None:
+    runtime = _runtime(TYPE_FOREGROUND_APPLICATION)
+    runtime.entry.data.update(
+        {
+            CONF_VALUE_SOURCE: "attribute",
+            CONF_VALUE_ATTRIBUTE: "package",
+            CONF_LABEL_ATTRIBUTE: "label",
+        }
+    )
+    start = datetime.now().astimezone().replace(microsecond=0)
+    states = [
+        State(
+            "sensor.activity",
+            "active",
+            {"package": "app.one", "label": "One"},
+            last_changed=start,
+        ),
+        State(
+            "sensor.activity",
+            "active",
+            {"package": "app.two", "label": "Two"},
+            last_changed=start + timedelta(minutes=2),
+        ),
+    ]
+    runtime.hass.async_add_executor_job = AsyncMock(
+        return_value={"input_boolean.activity": states}
+    )
+
+    sessions = await async_get_sessions(
+        runtime.hass,
+        "input_boolean.activity",
+        start,
+        start + timedelta(minutes=3),
+        runtime._classify_state,
+    )
+
+    assert sessions == [
+        (start, start + timedelta(minutes=2), "app.one", "One"),
+        (start + timedelta(minutes=2), start + timedelta(minutes=3), "app.two", "Two"),
+    ]
 
 
 def test_commit_session_splits_midnight_and_tracks_application() -> None:

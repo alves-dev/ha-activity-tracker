@@ -18,7 +18,13 @@ Always importing history would add startup work and replace current summaries un
 
 ## Outcomes
 
-Outcomes to be documented as project evolves.
+Implemented on 2026-08-27. A requested reconstruction is scheduled after normal
+monitor startup instead of delaying it. The query reports the first state it can
+use, and only dates from that boundary through the query end are replaced.
+Rebuild results record the processed sessions, rebuilt and preserved days,
+queried range, and non-sensitive warnings. Selected foreground-application
+attributes are classified from historical states using the same rule as live
+observations.
 
 ## Related
 

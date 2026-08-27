@@ -3,12 +3,22 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 
 from homeassistant.components.recorder import history
 from homeassistant.core import HomeAssistant, State
 
 Classifier = Callable[[State], tuple[bool, str | None, str | None]]
+
+
+@dataclass(frozen=True)
+class RecorderImport:
+    """Recorder reconstruction plus the range actually evidenced by Recorder."""
+
+    sessions: list[tuple[datetime, datetime, str | None, str | None]]
+    start: datetime | None
+    end: datetime
 
 
 async def async_get_sessions(
@@ -19,6 +29,18 @@ async def async_get_sessions(
     classify: Classifier,
 ) -> list[tuple[datetime, datetime, str | None, str | None]]:
     """Return closed activity intervals reconstructed from Recorder states."""
+    result = await async_get_import(hass, entity_id, start, end, classify)
+    return result.sessions
+
+
+async def async_get_import(
+    hass: HomeAssistant,
+    entity_id: str,
+    start: datetime,
+    end: datetime,
+    classify: Classifier,
+) -> RecorderImport:
+    """Return sessions and the Recorder window that can safely be replaced."""
     states_by_entity = await hass.async_add_executor_job(
         history.state_changes_during_period,
         hass,
@@ -31,6 +53,9 @@ async def async_get_sessions(
         True,
     )
     states = states_by_entity.get(entity_id.lower(), [])
+    if not states:
+        return RecorderImport([], None, end)
+    usable_start = max(start, states[0].last_changed)
     active_since: datetime | None = None
     active_id: str | None = None
     active_label: str | None = None
@@ -53,4 +78,4 @@ async def async_get_sessions(
 
     if active_since is not None and end > active_since:
         sessions.append((active_since, end, active_id, active_label))
-    return sessions
+    return RecorderImport(sessions, usable_start, end)
