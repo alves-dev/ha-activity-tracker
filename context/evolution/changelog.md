@@ -68,3 +68,8 @@
 - Added structured rolling-history availability attributes and local-week support.
 - Added focused regression coverage for merge gaps, unavailable time, migration,
   and report availability.
+
+## [Development Tooling] - Local Home Assistant Startup
+
+- Updated the local Home Assistant start script to isolate its runtime from the
+  integration virtual environment and wait for the HTTP service to become ready.
