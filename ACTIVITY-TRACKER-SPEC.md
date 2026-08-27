@@ -12,7 +12,7 @@ The specification is intended to provide enough functional and technical directi
 
 - **Name:** Activity Tracker
 - **Domain:** `activity_tracker`
-- **Initial UI language:** English only
+- **UI languages:** English and Brazilian Portuguese (`pt-BR`)
 - **Integration type:** custom Home Assistant integration
 - **Configuration:** UI only through Config Flow and Options Flow
 - **YAML configuration:** not required for the MVP
@@ -53,7 +53,6 @@ The following are explicitly outside the first version:
 - Automatic inference of activities from duration, such as deciding whether a barber visit was beard-only or haircut-and-beard.
 - Background application tracking.
 - Automatic classification of launchers, lock screens, or system applications.
-- Portuguese translations in the first release.
 
 ## 5. Core terminology
 
@@ -1194,7 +1193,7 @@ Potential later versions may add:
 - Goals and alerts, such as maximum TV time or minimum gym time.
 - CSV/JSON export.
 - Data repair tools.
-- More translations, initially Brazilian Portuguese.
+- More translations beyond English and Brazilian Portuguese.
 - Long-term aggregate tiers beyond detailed daily retention.
 
 ## 28. Important implementation cautions
@@ -1207,4 +1206,3 @@ Potential later versions may add:
 - Do not assume 24-hour days when splitting local calendar time.
 - Do not silently mix rule versions without exposing that fact in sensor attributes or diagnostics.
 - Do not calculate a complete rolling-period result from partial history; expose `unavailable` and the missing coverage.
-

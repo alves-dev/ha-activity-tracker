@@ -21,6 +21,7 @@ from custom_components.activity_tracker.const import (
     TYPE_ZONE,
 )
 from custom_components.activity_tracker.models import Session
+from custom_components.activity_tracker.recorder_import import async_get_sessions
 from custom_components.activity_tracker.runtime import ActivityTrackerRuntime
 
 
@@ -126,6 +127,47 @@ async def test_short_sessions_are_discarded_and_old_data_is_cleaned() -> None:
 
     assert runtime.last_completed is None
     assert "2000-01-01" not in runtime._data["daily_summaries"]
+
+
+async def test_recorder_import_rebuilds_daily_summaries() -> None:
+    runtime = _runtime()
+    now = datetime.now().astimezone().replace(microsecond=0)
+    with patch(
+        "custom_components.activity_tracker.runtime.async_get_sessions",
+        new=AsyncMock(
+            return_value=[
+                (now - timedelta(minutes=10), now - timedelta(minutes=5), None, None)
+            ]
+        ),
+    ):
+        await runtime.async_import_recorder_history()
+
+    summary = runtime.daily_summaries[now.date().isoformat()]
+    assert summary.total_seconds == 300
+    assert runtime.last_completed["quality"] == "imported"
+    assert "last_recorder_import" in runtime._data
+
+
+async def test_recorder_session_reconstruction_closes_and_splits_applications() -> None:
+    start = datetime.now().astimezone().replace(microsecond=0)
+    states = [
+        State("sensor.activity", "on", last_changed=start),
+        State("sensor.activity", "off", last_changed=start + timedelta(minutes=2)),
+    ]
+    hass = SimpleNamespace(
+        async_add_executor_job=AsyncMock(return_value={"sensor.activity": states})
+    )
+
+    sessions = await async_get_sessions(
+        hass,
+        "sensor.activity",
+        start,
+        start + timedelta(minutes=3),
+        lambda state: (state.state == "on", None, None),
+    )
+
+    assert sessions == [(start, start + timedelta(minutes=2), None, None)]
+    hass.async_add_executor_job.assert_awaited_once()
 
 
 def test_commit_session_splits_midnight_and_tracks_application() -> None:

@@ -30,6 +30,7 @@ from .const import (
     DOMAIN,
     METRICS,
     MONITOR_TYPES,
+    OPT_IMPORT_RECORDER_HISTORY,
     OPT_MERGE_GAP_SECONDS,
     OPT_MINIMUM_SESSION_SECONDS,
     OPT_RETENTION_DAYS,
@@ -61,8 +62,9 @@ class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 {
                     vol.Required(CONF_MONITOR_TYPE): selector.SelectSelector(
                         selector.SelectSelectorConfig(
-                            options=_select_options(MONITOR_TYPES),
+                            options=list(MONITOR_TYPES),
                             mode=selector.SelectSelectorMode.LIST,
+                            translation_key="monitor_type",
                         )
                     )
                 }
@@ -97,59 +99,9 @@ class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     self._monitor[CONF_ACTIVE_STATES] = active_states
                 self._monitor[CONF_NAME] = user_input[CONF_NAME].strip()
                 return await self.async_step_behavior()
-        schema: dict[Any, Any] = {vol.Required(CONF_NAME): str}
-        if monitor_type == TYPE_ZONE:
-            schema.update(
-                {
-                    vol.Required(CONF_ENTITY_ID): selector.EntitySelector(
-                        selector.EntitySelectorConfig(
-                            domain=["person", "device_tracker"]
-                        )
-                    ),
-                    vol.Required(CONF_ZONE_ENTITY_ID): selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="zone")
-                    ),
-                }
-            )
-        elif monitor_type == TYPE_AREA_PRESENCE:
-            schema.update(
-                {
-                    vol.Required(CONF_PERSON_ENTITY_ID): selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="person")
-                    ),
-                    vol.Required(CONF_AREA_ID): selector.AreaSelector(),
-                    vol.Required(CONF_PRESENCE_ENTITY_ID): selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="binary_sensor")
-                    ),
-                    vol.Required(CONF_ACTIVE_STATES, default="on"): str,
-                }
-            )
-        elif monitor_type == TYPE_FOREGROUND_APPLICATION:
-            schema.update(
-                {
-                    vol.Required(CONF_ENTITY_ID): selector.EntitySelector(),
-                    vol.Required(
-                        CONF_VALUE_SOURCE, default="state"
-                    ): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=_select_options(("state", "attribute")),
-                            mode=selector.SelectSelectorMode.LIST,
-                        )
-                    ),
-                    vol.Optional(CONF_VALUE_ATTRIBUTE): str,
-                    vol.Optional(CONF_LABEL_ATTRIBUTE): str,
-                }
-            )
-        else:
-            schema.update(
-                {
-                    vol.Required(CONF_ENTITY_ID): selector.EntitySelector(),
-                    vol.Required(CONF_ACTIVE_STATES): str,
-                }
-            )
         return self.async_show_form(
             step_id="source",
-            data_schema=vol.Schema(schema),
+            data_schema=_source_schema(monitor_type),
             errors=errors,
             description_placeholders={
                 "monitor_type_guidance": _source_guidance(monitor_type),
@@ -160,7 +112,10 @@ class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             self._options.update(user_input)
             return await self.async_step_periods()
-        return self.async_show_form(step_id="behavior", data_schema=_behavior_schema())
+        return self.async_show_form(
+            step_id="behavior",
+            data_schema=_behavior_schema(include_recorder_import=True),
+        )
 
     async def async_step_periods(self, user_input: dict[str, Any] | None = None):
         errors: dict[str, str] = {}
@@ -180,7 +135,9 @@ class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Optional(CONF_PERIODS, default=[]): selector.SelectSelector(
                     selector.SelectSelectorConfig(
-                        options=_select_options(PERIODS), multiple=True
+                        options=list(PERIODS),
+                        multiple=True,
+                        translation_key="report_period",
                     )
                 ),
                 vol.Optional("rolling_days", default=""): str,
@@ -205,7 +162,9 @@ class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 {
                     vol.Required(CONF_ENABLED_METRICS): selector.SelectSelector(
                         selector.SelectSelectorConfig(
-                            options=_select_options(METRICS), multiple=True
+                            options=list(METRICS),
+                            multiple=True,
+                            translation_key="metric",
                         )
                     )
                 }
@@ -239,57 +198,325 @@ class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class ActivityTrackerOptionsFlow(config_entries.OptionsFlow):
-    """Adjust runtime behavior and selected entity metrics."""
+    """Reconfigure every part of an existing monitor."""
 
     def __init__(self) -> None:
-        self._pending: dict[str, Any] = {}
+        self._monitor: dict[str, Any] = {}
+        self._options: dict[str, Any] = {}
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            self._monitor = dict(self.config_entry.data)
+            self._monitor[CONF_MONITOR_TYPE] = user_input[CONF_MONITOR_TYPE]
+            self._options = dict(self.config_entry.options)
+            return await self.async_step_source()
         return self.async_show_form(
-            step_id="init", data_schema=_behavior_schema(self.config_entry.options)
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_MONITOR_TYPE,
+                        default=self.config_entry.data.get(CONF_MONITOR_TYPE),
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=list(MONITOR_TYPES),
+                            mode=selector.SelectSelectorMode.LIST,
+                            translation_key="monitor_type",
+                        )
+                    )
+                }
+            ),
+        )
+
+    async def async_step_source(self, user_input: dict[str, Any] | None = None):
+        monitor_type = self._monitor[CONF_MONITOR_TYPE]
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            active_states = _split_states(user_input.get(CONF_ACTIVE_STATES, ""))
+            if (
+                monitor_type not in (TYPE_ZONE, TYPE_FOREGROUND_APPLICATION)
+                and not active_states
+            ):
+                errors[CONF_ACTIVE_STATES] = "required"
+            elif (
+                monitor_type == TYPE_FOREGROUND_APPLICATION
+                and user_input.get(CONF_VALUE_SOURCE) == "attribute"
+                and not str(user_input.get(CONF_VALUE_ATTRIBUTE, "")).strip()
+            ):
+                errors[CONF_VALUE_ATTRIBUTE] = "required"
+            else:
+                self._monitor.update(user_input)
+                if active_states:
+                    self._monitor[CONF_ACTIVE_STATES] = active_states
+                self._monitor[CONF_NAME] = user_input[CONF_NAME].strip()
+                return await self.async_step_behavior()
+        return self.async_show_form(
+            step_id="source",
+            data_schema=_source_schema(monitor_type, self._monitor),
+            errors=errors,
+            description_placeholders={
+                "monitor_type_guidance": _source_guidance(monitor_type)
+            },
+        )
+
+    async def async_step_behavior(self, user_input: dict[str, Any] | None = None):
+        if user_input is not None:
+            self._options.update(user_input)
+            self._options.pop(OPT_IMPORT_RECORDER_HISTORY, None)
+            return await self.async_step_periods()
+        return self.async_show_form(
+            step_id="behavior", data_schema=_behavior_schema(self._options)
+        )
+
+    async def async_step_periods(self, user_input: dict[str, Any] | None = None):
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            periods = list(user_input.get(CONF_PERIODS, []))
+            rolling, invalid_rolling = _rolling_periods(
+                user_input.get("rolling_days", "")
+            )
+            if not periods and not rolling:
+                errors[CONF_PERIODS] = "required"
+            elif invalid_rolling:
+                errors["rolling_days"] = "invalid_rolling_days"
+            else:
+                self._monitor[CONF_PERIODS] = periods + rolling
+                return await self.async_step_metrics()
+        current_periods = self._monitor.get(CONF_PERIODS, [])
+        rolling = ", ".join(
+            item.split(":", 1)[1]
+            for item in current_periods
+            if item.startswith("rolling_days:")
+        )
+        return self.async_show_form(
+            step_id="periods",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_PERIODS,
+                        default=[
+                            item
+                            for item in current_periods
+                            if not item.startswith("rolling_days:")
+                        ],
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=list(PERIODS),
+                            multiple=True,
+                            translation_key="report_period",
+                        )
+                    ),
+                    vol.Optional("rolling_days", default=rolling): str,
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_metrics(self, user_input: dict[str, Any] | None = None):
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            metrics = list(user_input.get(CONF_ENABLED_METRICS, []))
+            if not metrics:
+                errors[CONF_ENABLED_METRICS] = "required"
+            else:
+                self._monitor[CONF_ENABLED_METRICS] = metrics
+                return await self.async_step_history()
+        return self.async_show_form(
+            step_id="metrics",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_ENABLED_METRICS,
+                        default=self._monitor.get(CONF_ENABLED_METRICS, []),
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=list(METRICS),
+                            multiple=True,
+                            translation_key="metric",
+                        )
+                    )
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_history(self, user_input: dict[str, Any] | None = None):
+        if user_input is not None:
+            action = user_input["history_action"]
+            if action == "reimport":
+                self._options[OPT_IMPORT_RECORDER_HISTORY] = True
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                data=self._monitor,
+                title=self._monitor[CONF_NAME],
+            )
+            if action == "clear":
+                runtime = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
+                if runtime is not None:
+                    await runtime.async_clear_history()
+            return self.async_create_entry(title="", data=self._options)
+        return self.async_show_form(
+            step_id="history",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        "history_action", default="keep"
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=["keep", "clear", "reimport"],
+                            mode=selector.SelectSelectorMode.LIST,
+                            translation_key="history_action",
+                        )
+                    )
+                }
+            ),
         )
 
 
-def _behavior_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
+def _source_schema(
+    monitor_type: str, defaults: dict[str, Any] | None = None
+) -> vol.Schema:
+    """Build the source form for a monitor type, optionally prefilled."""
     defaults = defaults or {}
-    return vol.Schema(
-        {
-            vol.Required(
-                OPT_RETENTION_DAYS,
-                default=defaults.get(OPT_RETENTION_DAYS, DEFAULT_RETENTION_DAYS),
-            ): vol.All(vol.Coerce(int), vol.Range(min=7)),
-            vol.Required(
-                OPT_MINIMUM_SESSION_SECONDS,
-                default=defaults.get(
-                    OPT_MINIMUM_SESSION_SECONDS, DEFAULT_MINIMUM_SESSION_SECONDS
+
+    def required(
+        key: str, validator: Any, fallback: Any = vol.UNDEFINED
+    ) -> tuple[Any, Any]:
+        default = defaults.get(key, fallback)
+        return (
+            vol.Required(key, default=default)
+            if default is not vol.UNDEFINED
+            else vol.Required(key),
+            validator,
+        )
+
+    fields = [required(CONF_NAME, str)]
+    if monitor_type == TYPE_ZONE:
+        fields.extend(
+            (
+                required(
+                    CONF_ENTITY_ID,
+                    selector.EntitySelector(
+                        selector.EntitySelectorConfig(
+                            domain=["person", "device_tracker"]
+                        )
+                    ),
                 ),
-            ): vol.All(vol.Coerce(int), vol.Range(min=0)),
-            vol.Required(
-                OPT_UNAVAILABLE_BEHAVIOR,
-                default=defaults.get(
-                    OPT_UNAVAILABLE_BEHAVIOR, DEFAULT_UNAVAILABLE_BEHAVIOR
+                required(
+                    CONF_ZONE_ENTITY_ID,
+                    selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="zone")
+                    ),
                 ),
-            ): selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=_select_options(("end", "pending", "unknown")),
-                    mode=selector.SelectSelectorMode.LIST,
-                )
+            )
+        )
+    elif monitor_type == TYPE_AREA_PRESENCE:
+        fields.extend(
+            (
+                required(
+                    CONF_PERSON_ENTITY_ID,
+                    selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="person")
+                    ),
+                ),
+                required(CONF_AREA_ID, selector.AreaSelector()),
+                required(
+                    CONF_PRESENCE_ENTITY_ID,
+                    selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="binary_sensor")
+                    ),
+                ),
+                required(CONF_ACTIVE_STATES, str, "on"),
+            )
+        )
+    elif monitor_type == TYPE_FOREGROUND_APPLICATION:
+        fields.extend(
+            (
+                required(CONF_ENTITY_ID, selector.EntitySelector()),
+                required(
+                    CONF_VALUE_SOURCE,
+                    selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=["state", "attribute"],
+                            mode=selector.SelectSelectorMode.LIST,
+                            translation_key="application_value_source",
+                        )
+                    ),
+                    "state",
+                ),
+                (
+                    vol.Optional(
+                        CONF_VALUE_ATTRIBUTE,
+                        default=defaults.get(CONF_VALUE_ATTRIBUTE, ""),
+                    ),
+                    str,
+                ),
+                (
+                    vol.Optional(
+                        CONF_LABEL_ATTRIBUTE,
+                        default=defaults.get(CONF_LABEL_ATTRIBUTE, ""),
+                    ),
+                    str,
+                ),
+            )
+        )
+    else:
+        fields.extend(
+            (
+                required(CONF_ENTITY_ID, selector.EntitySelector()),
+                required(CONF_ACTIVE_STATES, str),
+            )
+        )
+    return vol.Schema(dict(fields))
+
+
+def _behavior_schema(
+    defaults: dict[str, Any] | None = None, *, include_recorder_import: bool = False
+) -> vol.Schema:
+    defaults = defaults or {}
+    fields: dict[Any, Any] = {
+        vol.Required(
+            OPT_RETENTION_DAYS,
+            default=defaults.get(OPT_RETENTION_DAYS, DEFAULT_RETENTION_DAYS),
+        ): vol.All(vol.Coerce(int), vol.Range(min=7)),
+        vol.Required(
+            OPT_MINIMUM_SESSION_SECONDS,
+            default=defaults.get(
+                OPT_MINIMUM_SESSION_SECONDS, DEFAULT_MINIMUM_SESSION_SECONDS
             ),
-            vol.Required(
+        ): vol.All(vol.Coerce(int), vol.Range(min=0)),
+        vol.Required(
+            OPT_UNAVAILABLE_BEHAVIOR,
+            default=defaults.get(
+                OPT_UNAVAILABLE_BEHAVIOR, DEFAULT_UNAVAILABLE_BEHAVIOR
+            ),
+        ): selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=["end", "pending", "unknown"],
+                mode=selector.SelectSelectorMode.LIST,
+                translation_key="unavailable_behavior",
+            )
+        ),
+        vol.Required(
+            OPT_UNAVAILABLE_TOLERANCE_SECONDS,
+            default=defaults.get(
                 OPT_UNAVAILABLE_TOLERANCE_SECONDS,
-                default=defaults.get(
-                    OPT_UNAVAILABLE_TOLERANCE_SECONDS,
-                    DEFAULT_UNAVAILABLE_TOLERANCE_SECONDS,
-                ),
-            ): vol.All(vol.Coerce(int), vol.Range(min=0)),
-            vol.Required(
-                OPT_MERGE_GAP_SECONDS,
-                default=defaults.get(OPT_MERGE_GAP_SECONDS, DEFAULT_MERGE_GAP_SECONDS),
-            ): vol.All(vol.Coerce(int), vol.Range(min=0)),
-        }
-    )
+                DEFAULT_UNAVAILABLE_TOLERANCE_SECONDS,
+            ),
+        ): vol.All(vol.Coerce(int), vol.Range(min=0)),
+        vol.Required(
+            OPT_MERGE_GAP_SECONDS,
+            default=defaults.get(OPT_MERGE_GAP_SECONDS, DEFAULT_MERGE_GAP_SECONDS),
+        ): vol.All(vol.Coerce(int), vol.Range(min=0)),
+    }
+    if include_recorder_import:
+        fields[
+            vol.Optional(
+                OPT_IMPORT_RECORDER_HISTORY,
+                default=defaults.get(OPT_IMPORT_RECORDER_HISTORY, False),
+            )
+        ] = selector.BooleanSelector()
+    return vol.Schema(fields)
 
 
 def _split_states(value: object) -> list[str]:
@@ -342,38 +569,3 @@ def _source_guidance(monitor_type: str) -> str:
         "The monitor is active whenever the source entity state matches one of the "
         "states you enter.",
     )
-
-
-def _select_options(values: tuple[str, ...]) -> list[dict[str, str]]:
-    """Build user-friendly labels while retaining stable stored values."""
-    labels = {
-        "entity_state": "Entity is in one of several active states",
-        "zone": "Person or device is in a zone",
-        "area_presence": "Person is in an internal area (presence sensor)",
-        "foreground_application": "Foreground application",
-        "generic": "Generic state rule",
-        "state": "Entity state",
-        "attribute": "Entity attribute",
-        "current_day": "Today",
-        "current_week": "Current week",
-        "current_month": "Current month",
-        "total_duration": "Total activity duration",
-        "session_count": "Session count",
-        "current_session_duration": "Current session duration",
-        "last_session_duration": "Last completed session duration",
-        "last_session_start": "Last completed session start",
-        "last_session_end": "Last completed session end",
-        "days_since_last_session": "Days since last completed session",
-        "average_daily_duration": "Average daily duration",
-        "average_session_duration": "Average session duration",
-        "longest_session_duration": "Longest session duration",
-        "shortest_session_duration": "Shortest session duration",
-        "first_activity_time": "First activity time today",
-        "last_activity_time": "Last activity time today",
-        "weekday_highest_total": "Weekday with the highest total activity",
-        "unknown_duration": "Unknown-duration total",
-        "end": "End the session",
-        "pending": "Keep the session pending",
-        "unknown": "Mark the interval as unknown",
-    }
-    return [{"value": value, "label": labels.get(value, value)} for value in values]

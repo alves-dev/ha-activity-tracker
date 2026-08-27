@@ -3,6 +3,8 @@ name: HACS Validation
 on:
   push:
     branches: [develop]
+  pull_request:
+    branches: [main]
   schedule:
     - cron: "0 0 * * *"
   workflow_dispatch:
@@ -11,10 +13,10 @@ permissions:
   contents: read
 
 jobs:
-  validate:
+  validate-hacs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: hacs/action@1ebf01c408f29afcb6406bd431bc98fd8cbb15aa # main reviewed 2026-08-26
         with:
           category: integration

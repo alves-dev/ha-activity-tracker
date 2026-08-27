@@ -1,7 +1,12 @@
 # Activity Tracker
 
+<p align="center">
+  <img src="docs/activity-tracker-logo.png" alt="Activity Tracker logo" width="320">
+</p>
+
 [![Quality Gate](https://sonar.alves-dev.com/api/project_badges/measure?project=ha-activity-tracker&metric=alert_status)](https://sonar.alves-dev.com/dashboard?id=ha-activity-tracker)
 [![Coverage](https://sonar.alves-dev.com/api/project_badges/measure?project=ha-activity-tracker&metric=coverage)](https://sonar.alves-dev.com/dashboard?id=ha-activity-tracker)
+![Version](https://img.shields.io/badge/Version-2026.8.0-41BDF5?style=flat-square)
 ![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.8%2B-41BDF5?logo=homeassistant)
 
 Track how long an entity, person, zone, area-presence sensor, or foreground application is active in Home Assistant.
@@ -19,6 +24,8 @@ Activity Tracker observes state changes live and stores compact daily summaries,
 ## HACS availability
 
 Activity Tracker is available as a **HACS custom repository** (category: **Integration**). It is not currently in the default HACS catalog: `https://github.com/alves-dev/ha-activity-tracker`.
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=alves-dev&repository=ha-activity-tracker&category=integration)
 
 ## Installation
 

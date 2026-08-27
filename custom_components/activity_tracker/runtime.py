@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -25,6 +26,7 @@ from .const import (
     CONF_ZONE_ENTITY_ID,
     DEFAULT_MERGE_GAP_SECONDS,
     DEFAULT_MINIMUM_SESSION_SECONDS,
+    OPT_IMPORT_RECORDER_HISTORY,
     OPT_MERGE_GAP_SECONDS,
     OPT_MINIMUM_SESSION_SECONDS,
     TYPE_AREA_PRESENCE,
@@ -33,7 +35,10 @@ from .const import (
     update_signal,
 )
 from .models import DailySummary, Session, split_interval
+from .recorder_import import async_get_sessions
 from .storage import ActivityTrackerStorage
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class ActivityTrackerRuntime:
@@ -68,6 +73,17 @@ class ActivityTrackerRuntime:
     async def async_setup(self) -> None:
         """Restore data, resume safely, and subscribe to source state changes."""
         self._data = await self._storage.async_load()
+        if self.entry.options.get(OPT_IMPORT_RECORDER_HISTORY):
+            try:
+                await self.async_import_recorder_history()
+            except Exception:  # Recorder may be disabled or unavailable at startup.
+                _LOGGER.exception(
+                    "Unable to import Recorder history for %s", self.entry.title
+                )
+            else:
+                options = dict(self.entry.options)
+                options[OPT_IMPORT_RECORDER_HISTORY] = False
+                self.hass.config_entries.async_update_entry(self.entry, options=options)
         self._last_completed = self._data.get("last_completed_session")
         checkpoint = self._data.get("checkpoint")
         if isinstance(checkpoint, dict):
@@ -103,6 +119,53 @@ class ActivityTrackerRuntime:
 
     async def async_delete_storage(self) -> None:
         await self._storage.async_remove()
+
+    async def async_clear_history(self) -> None:
+        """Remove completed aggregates while retaining any in-progress checkpoint."""
+        self._data["daily_summaries"] = {}
+        self._data.pop("last_completed_session", None)
+        self._last_completed = None
+        await self._async_save()
+
+    async def async_import_recorder_history(self) -> None:
+        """Replace retained summaries with sessions reconstructed from Recorder."""
+        entity_id = self._source_entity_id
+        if not entity_id:
+            return
+        now = datetime.now().astimezone()
+        retention = self.entry.options.get("retention_days", 90)
+        retention = retention if isinstance(retention, int) and retention > 0 else 90
+        start = datetime.combine(
+            now.date() - timedelta(days=retention - 1), datetime.min.time(), now.tzinfo
+        )
+        sessions = await async_get_sessions(
+            self.hass, entity_id, start, now, self._classify_state
+        )
+        summaries = self._data.setdefault("daily_summaries", {})
+        for date in list(summaries):
+            if start.date().isoformat() <= date <= now.date().isoformat():
+                summaries.pop(date)
+        self._last_completed = None
+        for session_start, session_end, app_id, app_label in sessions:
+            duration = (session_end - session_start).total_seconds()
+            minimum = self.entry.options.get(
+                OPT_MINIMUM_SESSION_SECONDS, DEFAULT_MINIMUM_SESSION_SECONDS
+            )
+            if not isinstance(minimum, int) or duration < minimum:
+                continue
+            session = Session(session_start, session_start, app_id, app_label)
+            self._commit_session(session, session_end, duration)
+            self._last_completed = {
+                "started_at": session_start.isoformat(),
+                "ended_at": session_end.isoformat(),
+                "duration_seconds": duration,
+                "quality": "imported",
+                "crossed_midnight": session_start.date() != session_end.date(),
+            }
+        self._data["last_completed_session"] = self._last_completed
+        self._data["last_recorder_import"] = now.isoformat()
+        await self._async_cleanup(now.date())
+        await self._async_save()
 
     @classmethod
     async def async_delete_entry_storage(
