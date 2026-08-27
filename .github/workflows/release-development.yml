@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: ha-activity-tracker-development-release-${{ github.ref }}
+  group: development-release-${{ github.repository }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -22,26 +22,27 @@ jobs:
         run: |
           version="$(jq -r '.version // empty' custom_components/activity_tracker/manifest.json)"
           test -n "${version}" || { echo "The integration manifest does not define a version." >&2; exit 1; }
-          echo "value=${version%-dev}-dev" >> "$GITHUB_OUTPUT"
-      - name: Replace existing development release and tag
-        run: |
-          gh release delete "v${DEV_VERSION}" --yes --cleanup-tag || true
-          git push origin --delete "v${DEV_VERSION}" || true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DEV_VERSION: ${{ steps.version.outputs.value }}
-      - name: Create or update development tag
+          short_sha="${GITHUB_SHA::7}"
+          echo "value=${version}-dev-${short_sha}" >> "$GITHUB_OUTPUT"
+      - name: Create immutable development tag
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git tag -f "v${{ steps.version.outputs.value }}"
-          git push origin --force "v${{ steps.version.outputs.value }}"
+          if git ls-remote --exit-code --tags origin "refs/tags/v${DEV_VERSION}" >/dev/null 2>&1; then
+            existing_sha="$(git ls-remote origin "refs/tags/v${DEV_VERSION}" | awk '{print $1}')"
+            test "${existing_sha}" = "${GITHUB_SHA}" || { echo "Existing development tag points to another commit." >&2; exit 1; }
+          else
+            git tag "v${DEV_VERSION}"
+            git push origin "v${DEV_VERSION}"
+          fi
+        env:
+          DEV_VERSION: ${{ steps.version.outputs.value }}
       - name: Create GitHub Release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: v${{ steps.version.outputs.value }}
           name: v${{ steps.version.outputs.value }}
-          body: This is a development release from develop.
+          body: Development release from develop for commit ${{ github.sha }}.
           prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

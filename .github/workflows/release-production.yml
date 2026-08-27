@@ -28,7 +28,7 @@ jobs:
           test "${GITHUB_REF}" = "refs/heads/main" || { echo "Production releases must run from main." >&2; exit 1; }
           version="$(jq -r '.version // empty' custom_components/activity_tracker/manifest.json)"
           test -n "${version}" || { echo "The integration manifest does not define a version." >&2; exit 1; }
-          case "${version}" in *-dev) echo "Development versions cannot be published as releases: ${version}" >&2; exit 1;; esac
+          case "${version}" in *-dev*) echo "Development versions cannot be published as releases: ${version}" >&2; exit 1;; esac
           tag="v${version}"
           git rev-parse "${tag}" >/dev/null 2>&1 && { echo "Local tag already exists: ${tag}" >&2; exit 1; }
           git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1 && { echo "Remote tag already exists: ${tag}" >&2; exit 1; }
