@@ -6,7 +6,7 @@
 
 [![Quality Gate](https://sonar.alves-dev.com/api/project_badges/measure?project=ha-activity-tracker&metric=alert_status)](https://sonar.alves-dev.com/dashboard?id=ha-activity-tracker)
 [![Coverage](https://sonar.alves-dev.com/api/project_badges/measure?project=ha-activity-tracker&metric=coverage)](https://sonar.alves-dev.com/dashboard?id=ha-activity-tracker)
-![Version](https://img.shields.io/badge/Version-2026.8.0-41BDF5?style=flat-square)
+![Version](https://img.shields.io/badge/Version-2026.8.1-41BDF5?style=flat-square)
 ![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.8%2B-41BDF5?logo=homeassistant)
 
 Track how long an entity, person, zone, area-presence sensor, or foreground application is active in Home Assistant.
