@@ -19,7 +19,7 @@ def _classify_state(self, state: State) -> tuple[bool, str | None, str | None]:
     if state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
         return False, None, None
     if self.entry.data.get(CONF_MONITOR_TYPE) == TYPE_ZONE:
-        return state.state == self.entry.data.get(CONF_ZONE_ENTITY_ID), None, None
+        return state.state == self._zone_state_value(), None, None
     if self.entry.data.get(CONF_MONITOR_TYPE) == TYPE_FOREGROUND_APPLICATION:
         identifier = str(state.state)
         return True, identifier, identifier
@@ -31,6 +31,9 @@ def _classify_state(self, state: State) -> tuple[bool, str | None, str | None]:
 - [runtime.py](../../../custom_components/activity_tracker/runtime.py) - classifies live state observations and provides the callback used by history reconstruction.
 - [recorder_import.py](../../../custom_components/activity_tracker/recorder_import.py) - receives the same classifier when reconstructing sessions.
 - [test_runtime.py](../../../tests/test_runtime.py) - verifies state, zone, unavailable, and application cases.
+- Zone rules compare the reported person/device-tracker state with the selected
+  zone's state value. `zone.home` is always `home`; other zones use their current
+  name, with the entity-id object part as a startup fallback.
 
 ## Related
 

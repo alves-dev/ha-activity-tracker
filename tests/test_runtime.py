@@ -28,7 +28,7 @@ from custom_components.activity_tracker.runtime import ActivityTrackerRuntime
 
 
 def _runtime(monitor_type: str = "entity_state") -> ActivityTrackerRuntime:
-    hass = SimpleNamespace(data={})
+    hass = SimpleNamespace(data={}, states=SimpleNamespace(get=lambda _: None))
     entry = SimpleNamespace(
         entry_id="monitor-1",
         title="Test monitor",
@@ -58,8 +58,16 @@ def test_classify_state_supports_entity_zone_and_foreground_sources() -> None:
     runtime.entry.data.update(
         {CONF_MONITOR_TYPE: TYPE_ZONE, CONF_ZONE_ENTITY_ID: "zone.gym"}
     )
-    assert runtime._classify_state(State("input_boolean.x", "zone.gym"))[0] is True
+    assert runtime._classify_state(State("input_boolean.x", "gym"))[0] is True
     assert runtime._classify_state(State("input_boolean.x", "home"))[0] is False
+
+    runtime.hass.states.get = lambda _: State(
+        "zone.gym", "0", {"friendly_name": "Gym"}
+    )
+    assert runtime._classify_state(State("input_boolean.x", "Gym"))[0] is True
+
+    runtime.entry.data[CONF_ZONE_ENTITY_ID] = "zone.home"
+    assert runtime._classify_state(State("input_boolean.x", "home"))[0] is True
 
     runtime.entry.data.update(
         {

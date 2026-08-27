@@ -8,7 +8,7 @@ import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.const import STATE_HOME, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import Event, HomeAssistant, State, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import (
@@ -430,7 +430,7 @@ class ActivityTrackerRuntime:
         if state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return False, None, None
         if monitor_type == TYPE_ZONE:
-            return state.state == self.entry.data.get(CONF_ZONE_ENTITY_ID), None, None
+            return state.state == self._zone_state_value(), None, None
         if monitor_type == TYPE_FOREGROUND_APPLICATION:
             value = (
                 state.state
@@ -448,6 +448,19 @@ class ActivityTrackerRuntime:
             )
         active_states = self.entry.data.get(CONF_ACTIVE_STATES, [])
         return state.state in active_states, None, None
+
+    def _zone_state_value(self) -> str | None:
+        """Return the state a person or device tracker reports for its zone."""
+        zone_entity_id = self.entry.data.get(CONF_ZONE_ENTITY_ID)
+        if not isinstance(zone_entity_id, str):
+            return None
+        if zone_entity_id == "zone.home":
+            return STATE_HOME
+
+        zone = self.hass.states.get(zone_entity_id)
+        if zone is not None:
+            return zone.name
+        return zone_entity_id.removeprefix("zone.")
 
     async def _async_finish_session(self, ended_at: datetime) -> None:
         if self._session is None:

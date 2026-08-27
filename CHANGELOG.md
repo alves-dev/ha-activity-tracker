@@ -7,6 +7,8 @@ All user-relevant changes are documented in this file.
 ### Changed
 
 - Improved activity accounting across brief interruptions and unavailable sources.
+- Corrected zone monitors to recognize the `home` and named-zone states reported
+  by person and device-tracker entities.
 
 ## [2026.8.0] - 2026-08-26
 

@@ -21,6 +21,8 @@ Different household and device activities report their status in different ways.
   counted as active duration.
 - [x] Source unavailability is reported according to the user's selected handling
   policy and never silently counted as activity.
+- [x] A zone monitor recognizes the state Home Assistant reports for the selected
+  zone, including the special `home` state.
 
 ## Related
 

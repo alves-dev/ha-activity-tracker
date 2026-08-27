@@ -1,5 +1,10 @@
 # Changelog
 
+## [Fix] - Zone Monitor State Matching
+
+- Corrected zone monitors to compare person and device-tracker states with the
+  Home Assistant zone value (`home` or the zone name), rather than `zone.*` IDs.
+
 ## [Developer Experience] - Local Home Assistant Control
 
 - Added `dev/start-ha.sh` and `dev/stop-ha.sh` to start and gracefully stop the
