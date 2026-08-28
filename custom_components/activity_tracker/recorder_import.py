@@ -41,7 +41,24 @@ async def async_get_import(
     classify: Classifier,
 ) -> RecorderImport:
     """Return sessions and the Recorder window that can safely be replaced."""
-    states_by_entity = await hass.async_add_executor_job(
+    states_by_entity = await _async_get_states(
+        hass, entity_id, start, end
+    )
+    states = states_by_entity.get(entity_id.lower(), [])
+    if not states:
+        return RecorderImport([], None, end)
+    return RecorderImport(
+        _sessions_from_states(states, start, end, classify),
+        max(start, states[0].last_changed),
+        end,
+    )
+
+
+async def _async_get_states(
+    hass: HomeAssistant, entity_id: str, start: datetime, end: datetime
+) -> dict[str, list[State]]:
+    """Query Recorder without blocking Home Assistant's event loop."""
+    return await hass.async_add_executor_job(
         history.state_changes_during_period,
         hass,
         start,
@@ -52,10 +69,15 @@ async def async_get_import(
         None,
         True,
     )
-    states = states_by_entity.get(entity_id.lower(), [])
-    if not states:
-        return RecorderImport([], None, end)
-    usable_start = max(start, states[0].last_changed)
+
+
+def _sessions_from_states(
+    states: list[State],
+    start: datetime,
+    end: datetime,
+    classify: Classifier,
+) -> list[tuple[datetime, datetime, str | None, str | None]]:
+    """Turn ordered state changes into closed activity intervals."""
     active_since: datetime | None = None
     active_id: str | None = None
     active_label: str | None = None
@@ -78,4 +100,4 @@ async def async_get_import(
 
     if active_since is not None and end > active_since:
         sessions.append((active_since, end, active_id, active_label))
-    return RecorderImport(sessions, usable_start, end)
+    return sessions

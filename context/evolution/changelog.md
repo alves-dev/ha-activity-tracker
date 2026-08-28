@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-28 — SonarQube maintainability remediation
+
+- Split Recorder querying from interval reconstruction and extracted runtime
+  session-transition and daily-summary helpers, preserving the existing
+  accounting contracts while reducing cognitive complexity.
+
 ## 2026-08-28 — Local Home Assistant helper standardization
 
 - Aligned the local Home Assistant start and stop helpers with the shared PID

@@ -346,34 +346,7 @@ class ActivityTrackerRuntime:
             await self._async_add_unknown(self._unknown_started_at, now)
             self._unknown_started_at = None
         if active:
-            if self._session is None:
-                self._session = Session(
-                    now, now, app_id, app_label, active_segment_started_at=now
-                )
-                await self._async_save()
-            elif app_id is not None and app_id != self._session.application_id:
-                await self._async_finish_session(now)
-                self._session = Session(
-                    now, now, app_id, app_label, active_segment_started_at=now
-                )
-                await self._async_save()
-            elif (
-                self._session.state == "unavailable_pending"
-                and self._unavailable_behavior == "unknown"
-            ):
-                await self._async_add_unknown(self._session.paused_at, now)
-                await self._async_finish_session(self._session.paused_at)
-                self._session = Session(
-                    now, now, app_id, app_label, active_segment_started_at=now
-                )
-                await self._async_save()
-            else:
-                if self._session.state != "active":
-                    self._session.state = "active"
-                    self._session.paused_at = None
-                    self._session.active_segment_started_at = now
-                self._session.last_observed_at = now
-                await self._async_save()
+            await self._async_handle_active(now, app_id, app_label)
         elif self._session is not None:
             if unavailable:
                 await self._async_handle_unavailable(now)
@@ -381,6 +354,45 @@ class ActivityTrackerRuntime:
                 await self._async_handle_inactive(now)
         self._schedule_interruption_deadline()
         self._notify()
+
+    async def _async_handle_active(
+        self, now: datetime, app_id: str | None, app_label: str | None
+    ) -> None:
+        """Start, resume, or switch the session for an active observation."""
+        if self._session is None:
+            self._start_session(now, app_id, app_label)
+        elif app_id is not None and app_id != self._session.application_id:
+            await self._async_finish_session(now)
+            self._start_session(now, app_id, app_label)
+        elif self._is_unknown_interruption():
+            await self._async_add_unknown(self._session.paused_at, now)
+            await self._async_finish_session(self._session.paused_at)
+            self._start_session(now, app_id, app_label)
+        else:
+            self._resume_session(now)
+        await self._async_save()
+
+    def _start_session(
+        self, now: datetime, app_id: str | None, app_label: str | None
+    ) -> None:
+        self._session = Session(
+            now, now, app_id, app_label, active_segment_started_at=now
+        )
+
+    def _is_unknown_interruption(self) -> bool:
+        return (
+            self._session is not None
+            and self._session.state == "unavailable_pending"
+            and self._unavailable_behavior == "unknown"
+        )
+
+    def _resume_session(self, now: datetime) -> None:
+        assert self._session is not None
+        if self._session.state != "active":
+            self._session.state = "active"
+            self._session.paused_at = None
+            self._session.active_segment_started_at = now
+        self._session.last_observed_at = now
 
     @property
     def _unavailable_behavior(self) -> str:
@@ -603,86 +615,62 @@ class ActivityTrackerRuntime:
             for index, (date, pending) in enumerate(
                 sorted(session.pending_days.items())
             ):
-                summary = DailySummary.from_dict(summaries.get(date))
-                seconds = float(pending["total_seconds"])
-                summary.total_seconds += seconds
-                summary.exact_seconds += seconds
-                if index == 0:
-                    summary.sessions_started += 1
-                    summary.first_active_at = (
-                        summary.first_active_at or pending.get("first_active_at")
-                    )
-                else:
-                    summary.continued_sessions += 1
-                summary.last_inactive_at = pending.get("last_inactive_at")
-                summary.longest_session_seconds = max(
-                    summary.longest_session_seconds, duration
+                self._commit_summary_fragment(
+                    summaries, date, float(pending["total_seconds"]),
+                    pending.get("first_active_at"), pending.get("last_inactive_at"),
+                    index == 0, session, duration,
                 )
-                summary.shortest_session_seconds = (
-                    duration
-                    if summary.shortest_session_seconds is None
-                    else min(summary.shortest_session_seconds, duration)
-                )
-                if session.application_id:
-                    app = summary.applications.setdefault(
-                        session.application_id,
-                        {
-                            "display_name": session.application_label
-                            or session.application_id,
-                            "total_seconds": 0,
-                            "sessions_started": 0,
-                            "longest_session_seconds": 0,
-                        },
-                    )
-                    app["total_seconds"] += seconds
-                    if index == 0:
-                        app["sessions_started"] += 1
-                    app["longest_session_seconds"] = max(
-                        app["longest_session_seconds"], duration
-                    )
-                summaries[date] = summary.as_dict()
             return
         for index, (date, part_start, part_end) in enumerate(
             split_interval(session.started_at, ended_at)
         ):
-            summary = DailySummary.from_dict(summaries.get(date))
-            seconds = (part_end - part_start).total_seconds()
-            summary.total_seconds += seconds
-            summary.exact_seconds += seconds
-            if index == 0:
-                summary.sessions_started += 1
-                summary.first_active_at = (
-                    summary.first_active_at or part_start.timetz().isoformat()
-                )
-            else:
-                summary.continued_sessions += 1
-            summary.last_inactive_at = part_end.timetz().isoformat()
-            summary.longest_session_seconds = max(
-                summary.longest_session_seconds, duration
+            self._commit_summary_fragment(
+                summaries, date, (part_end - part_start).total_seconds(),
+                part_start.timetz().isoformat(), part_end.timetz().isoformat(),
+                index == 0, session, duration,
             )
-            summary.shortest_session_seconds = (
-                duration
-                if summary.shortest_session_seconds is None
-                else min(summary.shortest_session_seconds, duration)
-            )
-            if session.application_id:
-                app = summary.applications.setdefault(
-                    session.application_id,
-                    {
-                        "display_name": session.application_label
-                        or session.application_id,
-                        "total_seconds": 0,
-                        "sessions_started": 0,
-                        "longest_session_seconds": 0,
-                    },
-                )
-                app["total_seconds"] += seconds
-                if index == 0:
-                    app["sessions_started"] += 1
-                app["longest_session_seconds"] = max(
-                    app["longest_session_seconds"], duration
-                )
-            summaries[date] = summary.as_dict()
+
+    def _commit_summary_fragment(  # noqa: PLR0917
+        self, summaries: dict[str, Any], date: str, seconds: float,
+        first_active_at: str | None, last_inactive_at: str | None,
+        starts_session: bool, session: Session, duration: float,
+    ) -> None:
+        """Add one completed-session fragment to a daily aggregate."""
+        summary = DailySummary.from_dict(summaries.get(date))
+        summary.total_seconds += seconds
+        summary.exact_seconds += seconds
+        if starts_session:
+            summary.sessions_started += 1
+            summary.first_active_at = summary.first_active_at or first_active_at
+        else:
+            summary.continued_sessions += 1
+        summary.last_inactive_at = last_inactive_at
+        summary.longest_session_seconds = max(summary.longest_session_seconds, duration)
+        summary.shortest_session_seconds = (
+            duration if summary.shortest_session_seconds is None
+            else min(summary.shortest_session_seconds, duration)
+        )
+        self._commit_application_fragment(
+            summary, session, seconds, starts_session, duration
+        )
+        summaries[date] = summary.as_dict()
+
+    @staticmethod
+    def _commit_application_fragment(
+        summary: DailySummary, session: Session, seconds: float,
+        starts_session: bool, duration: float,
+    ) -> None:
+        if not session.application_id:
+            return
+        app = summary.applications.setdefault(
+            session.application_id,
+            {"display_name": session.application_label or session.application_id,
+             "total_seconds": 0, "sessions_started": 0, "longest_session_seconds": 0},
+        )
+        app["total_seconds"] += seconds
+        if starts_session:
+            app["sessions_started"] += 1
+        app["longest_session_seconds"] = max(app["longest_session_seconds"], duration)
 
     async def _async_cleanup(self, today) -> None:
         retention = self.entry.options.get("retention_days", 90)
