@@ -40,8 +40,10 @@ async def async_get_config_entry_diagnostics(
         if isinstance(value, dict) and isinstance(value.get("rule_version", 1), int)
     ]
     warnings = last_import.get("warnings", []) if isinstance(last_import, dict) else []
-    import_result = (
-        {
+    import_result = None
+    if isinstance(last_import, dict):
+        warning_count = len(warnings) if isinstance(warnings, list) else 0
+        import_result = {
             key: last_import[key]
             for key in (
                 "status",
@@ -51,10 +53,7 @@ async def async_get_config_entry_diagnostics(
             )
             if key in last_import
         }
-        | {"warning_count": len(warnings) if isinstance(warnings, list) else 0}
-        if isinstance(last_import, dict)
-        else None
-    )
+        import_result["warning_count"] = warning_count
     return {
         "monitor_type": entry.data.get(CONF_MONITOR_TYPE),
         "source_id": _redact_source_id(

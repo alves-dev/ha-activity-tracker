@@ -201,7 +201,7 @@ class ActivityTrackerRuntime:
                 )
             }
             preserved_days = len(summaries) - len(rebuilt_dates)
-            for date in list(summaries):
+            for date in tuple(summaries):
                 if date in rebuilt_dates:
                     summaries.pop(date)
             last_completed: dict[str, Any] | None = None
@@ -237,7 +237,7 @@ class ActivityTrackerRuntime:
                     summary.complete = False
                     summaries[boundary] = summary.as_dict()
             cutoff = (now.date() - timedelta(days=retention - 1)).isoformat()
-            for date in list(summaries):
+            for date in tuple(summaries):
                 if date < cutoff:
                     summaries.pop(date)
             warnings: list[str] = []
@@ -678,7 +678,7 @@ class ActivityTrackerRuntime:
             return
         cutoff = (today - timedelta(days=retention - 1)).isoformat()
         summaries = self._data.setdefault("daily_summaries", {})
-        for date in list(summaries):
+        for date in tuple(summaries):
             if date < cutoff:
                 summaries.pop(date)
 

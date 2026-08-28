@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-08-28 — SonarQube follow-up cleanup
+
+- Simplified diagnostics import-result construction and replaced mutation-safe
+  list snapshots with tuple snapshots in runtime cleanup paths.
+
 ## 2026-08-28 — SonarQube maintainability remediation
 
 - Split Recorder querying from interval reconstruction and extracted runtime
