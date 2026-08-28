@@ -362,4 +362,18 @@ def test_rolling_availability_requires_complete_history() -> None:
         "available_days": 1,
         "available_from": "2026-08-25",
         "reason": "insufficient_complete_history",
+        "suggested_action": "wait_for_complete_history",
+    }
+
+
+def test_storage_unavailability_includes_a_safe_suggested_action() -> None:
+    runtime = _runtime()
+    runtime._storage_error = "storage_migration_failed"
+
+    available, attributes = runtime.period_availability("current_day")
+
+    assert available is False
+    assert attributes == {
+        "reason": "storage_migration_failed",
+        "suggested_action": "restore_or_reconfigure_monitor",
     }

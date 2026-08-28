@@ -109,8 +109,10 @@ class ActivityMetricSensor(SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         _, attributes = self._value_and_attributes()
-        if self._period:
-            _, availability = self._runtime.period_availability(self._period)
+        if self._period or getattr(self._runtime, "storage_error", None) is not None:
+            _, availability = self._runtime.period_availability(
+                self._period or "current_day"
+            )
             attributes.update(availability)
         return attributes
 

@@ -25,6 +25,12 @@ Users can keep useful reports after normal history retention has expired, while 
   Recorder-backed date range, preserves retained outer summaries, and records a
   compact result for safe reimport troubleshooting.
 
+## Delivered Behavior (2026-08-28)
+
+- [x] A destructive clear or Recorder replacement is confirmed explicitly.
+- [x] Support diagnostics describe retained-history health without revealing
+  detailed activity, location, or application history.
+
 ## Related
 
 - [Project Intent](project-intent.md)
@@ -34,6 +40,7 @@ Users can keep useful reports after normal history retention has expired, while 
 - [Decision: Storage Migration and Import Safety](../decisions/008-storage-migration-and-import-safety.md)
 - [Decision: Calendar Boundaries and Local Time](../decisions/009-calendar-boundaries.md)
 - [Pattern: Calendar-Day Session Aggregation](../knowledge/patterns/calendar-day-session-aggregation.md)
+- [Decision: Administrative History Actions and Redacted Diagnostics](../decisions/010-administrative-history-and-diagnostics.md)
 
 ## Status
 

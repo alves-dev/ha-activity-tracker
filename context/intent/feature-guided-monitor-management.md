@@ -15,11 +15,18 @@ The setup experience makes activity tracking available to Home Assistant users w
 - [ ] Users can edit an existing monitor's definition and reporting choices.
 - [ ] The monitor has a user-provided name.
 
+## Delivered Behavior (2026-08-28)
+
+- [x] A rule-changing edit clearly offers keep, clear, or Recorder-reimport of
+  retained history; presentation-only edits do not.
+- [x] Clearing or reimporting history requires an explicit final confirmation.
+
 ## Related
 
 - [Project Intent](project-intent.md)
 - [Decision: Home Assistant Config-Entry Integration](../decisions/002-home-assistant-integration-architecture.md)
 - [Pattern: Multi-Step Configuration Flow](../knowledge/patterns/multi-step-configuration-flow.md)
+- [Decision: Administrative History Actions and Redacted Diagnostics](../decisions/010-administrative-history-and-diagnostics.md)
 
 ## Status
 

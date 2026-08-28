@@ -22,6 +22,11 @@ Users need concise answers to both current and historical questions about activi
 - [x] Week and rolling-day reports use the available Home Assistant local calendar
   configuration, with Monday as the documented platform fallback.
 
+## Delivered Behavior (2026-08-28)
+
+- [x] Unavailable report entities provide a stable reason and a non-sensitive,
+  user-actionable next step.
+
 ## Related
 
 - [Project Intent](project-intent.md)
@@ -30,6 +35,7 @@ Users need concise answers to both current and historical questions about activi
 - [Decision: Data Quality and Period Completeness](../decisions/007-data-quality-and-period-completeness.md)
 - [Decision: Calendar Boundaries and Local Time](../decisions/009-calendar-boundaries.md)
 - [Pattern: Selected Metric Entity Factory](../knowledge/patterns/selected-metric-entity-factory.md)
+- [Decision: Administrative History Actions and Redacted Diagnostics](../decisions/010-administrative-history-and-diagnostics.md)
 
 ## Status
 

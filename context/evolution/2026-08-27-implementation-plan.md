@@ -240,19 +240,41 @@ replaces its prior aggregate rather than adding to it.
 
 ## Phase 5: Administrative UX and Diagnostics
 
+### Delivered Refinement (2026-08-28)
+
+The proposed contract is recorded in [Decision: Administrative History Actions
+and Redacted Diagnostics](../decisions/010-administrative-history-and-diagnostics.md).
+It distinguishes rule-changing edits from presentation-only edits, makes clear
+and reimport a separately confirmed action, and defines an allow-listed
+diagnostic payload. ADR 010 is accepted and this contract has been implemented.
+
 ### Work
 
-- Require explicit confirmation before clearing history or replacing summaries with reimported data.
-- Show keep/clear/reimport choices only when a rule-changing edit can invalidate history.
-- Add redacted diagnostics: monitor type, source ID, rule version, retention, stored date range, checkpoint state, last import/cleanup, and summary count.
-- Make entity unavailability actionable without exposing detailed location or application history in logs or diagnostics.
+1. Compare the original entry data/options with proposed changes and classify
+   them as rule-changing or presentation-only according to ADR 010.
+2. For rule-changing edits, add the history-action step followed by an explicit,
+   unselected confirmation step for clear or reimport. Keep remains direct.
+3. Add a redacted Home Assistant diagnostics provider with an allow-list from
+   ADR 010; use a stable redaction for the source identifier and omit raw
+   payload, state, attribute, session, application, and location data.
+4. Centralize availability reason-to-suggested-action mapping in the runtime;
+   sensor attributes expose only that mapping and existing aggregate counts.
+5. Add English and Brazilian Portuguese strings and focused config-flow,
+   diagnostics, and entity-attribute tests.
 
 ### Validation
 
-- [ ] Destructive history actions require confirmation.
-- [ ] Presentation-only edits do not prompt for history handling.
-- [ ] Diagnostics contain no detailed activity history or sensitive raw data.
-- [ ] Entity availability reasons are machine-readable and user-actionable.
+- [x] Destructive history actions require confirmation.
+- [x] Presentation-only edits do not prompt for history handling.
+- [x] Diagnostics contain no detailed activity history or sensitive raw data.
+- [x] Entity availability reasons are machine-readable and user-actionable.
+
+### Delivery Outcome (2026-08-28)
+
+Implemented and validated. The options flow prompts for a history action only
+when retained accounting can change, clear/reimport actions require confirmation,
+diagnostics are redacted through an allow-list, and unavailable reports include
+stable suggested actions.
 
 ## Phase 6: Optional Advanced Metrics
 
@@ -290,5 +312,5 @@ This phase requires separate scope approval after phases 1–5, because its usef
 ## Status
 
 - **Created**: 2026-08-27
-- **Status**: Implemented — data-correctness and Recorder-import slices delivered
-- **Note**: Phases 5–6 remain separate future work.
+- **Status**: Implemented — operational release delivered through Phase 5
+- **Note**: Phase 6 remains separate future work.

@@ -203,6 +203,7 @@ class ActivityTrackerOptionsFlow(config_entries.OptionsFlow):
     def __init__(self) -> None:
         self._monitor: dict[str, Any] = {}
         self._options: dict[str, Any] = {}
+        self._history_action = "keep"
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
         if user_input is not None:
@@ -320,7 +321,14 @@ class ActivityTrackerOptionsFlow(config_entries.OptionsFlow):
                 errors[CONF_ENABLED_METRICS] = "required"
             else:
                 self._monitor[CONF_ENABLED_METRICS] = metrics
-                return await self.async_step_history()
+                if _is_rule_changing(
+                    self.config_entry.data,
+                    self.config_entry.options,
+                    self._monitor,
+                    self._options,
+                ):
+                    return await self.async_step_history()
+                return await self._async_save_options()
         return self.async_show_form(
             step_id="metrics",
             data_schema=vol.Schema(
@@ -343,18 +351,10 @@ class ActivityTrackerOptionsFlow(config_entries.OptionsFlow):
     async def async_step_history(self, user_input: dict[str, Any] | None = None):
         if user_input is not None:
             action = user_input["history_action"]
-            if action == "reimport":
-                self._options[OPT_IMPORT_RECORDER_HISTORY] = True
-            self.hass.config_entries.async_update_entry(
-                self.config_entry,
-                data=self._monitor,
-                title=self._monitor[CONF_NAME],
-            )
-            if action == "clear":
-                runtime = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
-                if runtime is not None:
-                    await runtime.async_clear_history()
-            return self.async_create_entry(title="", data=self._options)
+            self._history_action = action
+            if action == "keep":
+                return await self._async_save_options()
+            return await self.async_step_confirm_history()
         return self.async_show_form(
             step_id="history",
             data_schema=vol.Schema(
@@ -371,6 +371,70 @@ class ActivityTrackerOptionsFlow(config_entries.OptionsFlow):
                 }
             ),
         )
+
+    async def async_step_confirm_history(
+        self, user_input: dict[str, Any] | None = None
+    ):
+        """Require a distinct confirmation before a destructive history action."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            if user_input.get("confirm_history_action") is not True:
+                errors["confirm_history_action"] = "confirmation_required"
+            else:
+                return await self._async_save_options()
+        return self.async_show_form(
+            step_id="confirm_history",
+            data_schema=vol.Schema(
+                {vol.Required("confirm_history_action", default=False): bool}
+            ),
+            errors=errors,
+            description_placeholders={"action": self._history_action},
+        )
+
+    async def _async_save_options(self):
+        """Save the edited monitor and apply a previously confirmed action."""
+        if self._history_action == "reimport":
+            self._options[OPT_IMPORT_RECORDER_HISTORY] = True
+        self.hass.config_entries.async_update_entry(
+            self.config_entry,
+            data=self._monitor,
+            title=self._monitor[CONF_NAME],
+        )
+        if self._history_action == "clear":
+            runtime = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
+            if runtime is not None:
+                await runtime.async_clear_history()
+        return self.async_create_entry(title="", data=self._options)
+
+
+def _is_rule_changing(
+    previous_data: dict[str, Any],
+    previous_options: dict[str, Any],
+    updated_data: dict[str, Any],
+    updated_options: dict[str, Any],
+) -> bool:
+    """Return whether an edit changes the meaning of retained activity."""
+    rule_data_keys = (
+        CONF_MONITOR_TYPE,
+        CONF_ENTITY_ID,
+        CONF_ACTIVE_STATES,
+        CONF_ZONE_ENTITY_ID,
+        CONF_PRESENCE_ENTITY_ID,
+        CONF_VALUE_SOURCE,
+        CONF_VALUE_ATTRIBUTE,
+    )
+    rule_option_keys = (
+        OPT_MINIMUM_SESSION_SECONDS,
+        OPT_MERGE_GAP_SECONDS,
+        OPT_UNAVAILABLE_BEHAVIOR,
+        OPT_UNAVAILABLE_TOLERANCE_SECONDS,
+    )
+    return any(
+        previous_data.get(key) != updated_data.get(key) for key in rule_data_keys
+    ) or any(
+        previous_options.get(key) != updated_options.get(key)
+        for key in rule_option_keys
+    )
 
 
 def _source_schema(

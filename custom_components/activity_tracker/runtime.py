@@ -48,6 +48,14 @@ from .storage import ActivityTrackerStorage
 
 _LOGGER = logging.getLogger(__name__)
 
+_AVAILABILITY_ACTIONS = {
+    "insufficient_complete_history": "wait_for_complete_history",
+    "retention_limit": "increase_retention_or_choose_shorter_period",
+    "incompatible_rule_history": "reimport_or_wait_for_new_history",
+    "unavailable_source_data": "check_source_entity",
+    "storage_migration_failed": "restore_or_reconfigure_monitor",
+}
+
 
 class ActivityTrackerRuntime:
     """Observe a configured source and aggregate compact daily summaries."""
@@ -740,6 +748,8 @@ class ActivityTrackerRuntime:
 
     def period_availability(self, period: str) -> tuple[bool, dict[str, Any]]:
         """Return whether a period has its required complete local-day history."""
+        if self._storage_error is not None:
+            return False, self._availability_attributes(self._storage_error)
         if not period.startswith("rolling_days:"):
             return True, {}
         required = max(1, int(period.split(":", 1)[1]))
@@ -762,16 +772,23 @@ class ActivityTrackerRuntime:
             "available_from": complete_dates[0] if complete_dates else None,
         }
         if required > retention:
-            attributes["reason"] = "retention_limit"
+            attributes.update(self._availability_attributes("retention_limit"))
             return False, attributes
         if len(complete_dates) < required:
-            attributes["reason"] = "insufficient_complete_history"
-            return False, attributes
-        if self._storage_error is not None:
-            attributes["reason"] = self._storage_error
+            attributes.update(
+                self._availability_attributes("insufficient_complete_history")
+            )
             return False, attributes
         attributes["period_end"] = now.isoformat()
         return True, attributes
+
+    @staticmethod
+    def _availability_attributes(reason: str) -> dict[str, str]:
+        """Return a stable, non-sensitive next step for an unavailable report."""
+        return {
+            "reason": reason,
+            "suggested_action": _AVAILABILITY_ACTIONS.get(reason, "check_monitor"),
+        }
 
     def _notify(self) -> None:
         async_dispatcher_send(self.hass, self.signal)

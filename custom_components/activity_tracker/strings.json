@@ -133,7 +133,15 @@
         "description": "Use reimport when the changed rule should be applied to the available Recorder history. It replaces summaries within the retention period.",
         "data": {"history_action": "Existing history"},
         "data_description": {"history_action": "Keep preserves current summaries; clear deletes them; reimport rebuilds them using the configured source and Recorder history."}
+      },
+      "confirm_history": {
+        "title": "Confirm history action",
+        "description": "Confirm {action} before changing retained history. Clear removes all retained summaries; reimport replaces only the Recorder-backed range.",
+        "data": {"confirm_history_action": "I understand this changes retained history"}
       }
+    },
+    "error": {
+      "confirmation_required": "Select the confirmation before continuing."
     }
   },
   "selector": {

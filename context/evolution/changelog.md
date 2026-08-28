@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-08-28 — Administrative UX and diagnostics
+
+- Added explicit confirmation before a monitor edit clears retained history or
+  requests a Recorder reimport; presentation-only edits now save directly.
+- Added redacted monitor diagnostics and actionable availability attributes
+  without exposing activity, location, or application history.
+
+## 2026-08-27 — Phase 5 proposal
+
+- Proposed the administrative-history confirmation and redacted-diagnostics
+  contract for approval before implementation.
+
 ## 2026-08-27 — Recorder import reliability
 
 - Moved optional Recorder reconstruction to a post-startup background task.
