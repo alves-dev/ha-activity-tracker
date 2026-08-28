@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-28 — Documentação de monitores e sensores
+
+- Adicionadas ao README as tabelas dos cinco tipos de monitor e dos quinze
+  sensores de relatório selecionáveis, incluindo como os sensores são criados.
+- Adicionados casos de uso separados para cada tipo de monitor em `docs/` e
+  vinculados a partir da tabela do README.
+- Cada caso de uso agora apresenta o conteúdo em PT-BR e inglês no mesmo
+  arquivo, identificado pelos rótulos `[pt-BR]` e `[en]`.
+- As tabelas de tipos de monitor e sensores selecionáveis no README também têm
+  versões em PT-BR e inglês identificadas pelos mesmos rótulos.
+
 ## 2026-08-28 — Local integration deployment
 
 - Added `dev/copy-to-core.sh` to stop the local Home Assistant instance, deploy
