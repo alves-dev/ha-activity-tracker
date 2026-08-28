@@ -10,10 +10,13 @@
 
 ## Local Home Assistant Test Instance
 
-- Start it with `sh dev/start-ha.sh`; stop it with `sh dev/stop-ha.sh`.
-- Always stop the instance before copying integration files, then start it again.
-- The scripts manage their PID at `/tmp/ha-activity-tracker-home-assistant.pid`
-  and write logs to `/tmp/ha-activity-tracker-home-assistant.log`.
+- Start it with `sh dev/start-ha.sh`; stop it with `sh dev/stop-ha.sh`. These
+  helpers manage the shared local Home Assistant instance.
+- Use `sh dev/copy-to-core.sh` to stop that instance, deploy this integration
+  to the local core configuration, and start it again.
+- The start and stop helpers manage their shared PID at
+  `/tmp/ha-local-home-assistant.pid` and write logs to
+  `/tmp/ha-activity-tracker-home-assistant.log`.
 - For exploratory tests, open `http://localhost:8123` and sign in with the
   local-only test account `igor` / `dev`. These credentials must not be reused
   outside this local test environment.

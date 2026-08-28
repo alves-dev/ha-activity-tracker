@@ -5,7 +5,7 @@ set -eu
 
 readonly HA_CORE_DIR="/home/alves-dev/projects/others/core"
 readonly HA_CONFIG_DIR="$HA_CORE_DIR/config"
-readonly PID_FILE="/tmp/ha-activity-tracker-home-assistant.pid"
+readonly PID_FILE="/tmp/ha-local-home-assistant.pid"
 readonly LOG_FILE="/tmp/ha-activity-tracker-home-assistant.log"
 readonly HEALTH_URL="http://127.0.0.1:8123/"
 readonly START_TIMEOUT_SECONDS=30

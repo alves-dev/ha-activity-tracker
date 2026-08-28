@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-08-28 — Local Home Assistant helper standardization
+
+- Aligned the local Home Assistant start and stop helpers with the shared PID
+  file convention and documented the integration deployment helper for agents.
+
 ## 2026-08-28 — Documentação de monitores e sensores
 
 - Adicionadas ao README as tabelas dos cinco tipos de monitor e dos quinze
