@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-28 — Local integration deployment
+
+- Added `dev/copy-to-core.sh` to stop the local Home Assistant instance, deploy
+  Activity Tracker to its configuration directory, and start the instance again.
+
+## 2026-08-28 — Per-monitor duration display
+
+- Added a presentation-only duration unit for each monitor: hours, minutes, or
+  seconds. New monitors default to hours; existing monitors preserve seconds
+  until edited.
+
 ## 2026-08-28 — Administrative UX and diagnostics
 
 - Added explicit confirmation before a monitor edit clears retained history or

@@ -20,6 +20,8 @@ The setup experience makes activity tracking available to Home Assistant users w
 - [x] A rule-changing edit clearly offers keep, clear, or Recorder-reimport of
   retained history; presentation-only edits do not.
 - [x] Clearing or reimporting history requires an explicit final confirmation.
+- [x] Users can choose the duration display unit for each monitor without a
+  history action.
 
 ## Related
 
@@ -27,6 +29,7 @@ The setup experience makes activity tracking available to Home Assistant users w
 - [Decision: Home Assistant Config-Entry Integration](../decisions/002-home-assistant-integration-architecture.md)
 - [Pattern: Multi-Step Configuration Flow](../knowledge/patterns/multi-step-configuration-flow.md)
 - [Decision: Administrative History Actions and Redacted Diagnostics](../decisions/010-administrative-history-and-diagnostics.md)
+- [Decision: Per-Monitor Duration Presentation Unit](../decisions/011-duration-presentation-unit.md)
 
 ## Status
 

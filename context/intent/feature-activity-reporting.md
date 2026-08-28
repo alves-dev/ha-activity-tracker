@@ -26,6 +26,8 @@ Users need concise answers to both current and historical questions about activi
 
 - [x] Unavailable report entities provide a stable reason and a non-sensitive,
   user-actionable next step.
+- [x] Each monitor can publish duration reports in hours, minutes, or seconds
+  without changing its retained accounting data.
 
 ## Related
 
@@ -36,6 +38,7 @@ Users need concise answers to both current and historical questions about activi
 - [Decision: Calendar Boundaries and Local Time](../decisions/009-calendar-boundaries.md)
 - [Pattern: Selected Metric Entity Factory](../knowledge/patterns/selected-metric-entity-factory.md)
 - [Decision: Administrative History Actions and Redacted Diagnostics](../decisions/010-administrative-history-and-diagnostics.md)
+- [Decision: Per-Monitor Duration Presentation Unit](../decisions/011-duration-presentation-unit.md)
 
 ## Status
 

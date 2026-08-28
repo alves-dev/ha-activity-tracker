@@ -40,6 +40,7 @@
         "title": "Defina o comportamento das sessões",
         "description": "Estas escolhas se aplicam somente a este monitor. Elas determinam quais atividades concluídas são mantidas e como interrupções curtas são tratadas.",
         "data": {
+          "duration_unit": "Formato de exibição da duração",
           "retention_days": "Manter relatórios por (dias)",
           "minimum_session_seconds": "Ignorar sessões menores que (segundos)",
           "unavailable_behavior": "Se a fonte ficar indisponível",
@@ -48,6 +49,7 @@
           "import_recorder_history": "Importar histórico anterior do Recorder"
         },
         "data_description": {
+          "duration_unit": "Escolha como os sensores de duração são mostrados. Isso altera apenas a exibição, não o tempo registrado nem o histórico.",
           "retention_days": "Quantidade de dias de calendário para manter resumos diários compactos. O mínimo é 7 dias; resumos mais antigos são excluídos durante a limpeza.",
           "minimum_session_seconds": "Sessões concluídas menores que esta quantidade de segundos são descartadas. Use 0 para manter todas as sessões.",
           "unavailable_behavior": "Escolha se uma fonte indisponível ou desconhecida encerra a atividade, aguarda brevemente ou registra um período como tempo desconhecido.",
@@ -94,7 +96,7 @@
         }
       },
       "source": {"title": "Escolha a fonte da atividade", "description": "{monitor_type_guidance}", "data": {"name": "Nome deste monitor", "entity_id": "Entidade a observar", "active_states": "Estados que indicam que a atividade está acontecendo", "zone_entity_id": "Zona que conta como atividade", "person_entity_id": "Pessoa que identifica este monitor", "area_id": "Área que conta como atividade", "presence_entity_id": "Sensor que detecta presença", "value_source": "Onde ler o aplicativo", "value_attribute": "Atributo que contém o ID do aplicativo", "label_attribute": "Atributo que contém o nome do aplicativo (opcional)"}, "data_description": {"name": "Um nome claro para o dispositivo e as entidades deste monitor.", "entity_id": "A entidade cujo estado será observado. O Rastreador de atividades nunca a altera.", "active_states": "Informe os valores exatos dos estados separados por vírgulas. Mudar entre esses valores mantém uma única sessão aberta.", "zone_entity_id": "Somente esta zona conta como atividade.", "person_entity_id": "Usada apenas para identificar e nomear. O sensor de presença selecionado determina a atividade.", "area_id": "Usada para identificar e nomear a área. Uma área sozinha não informa quem está presente.", "presence_entity_id": "O sensor binário que informa se a pessoa selecionada está na área escolhida.", "value_source": "Escolha se o identificador do aplicativo vem do estado da entidade ou de um atributo.", "value_attribute": "Obrigatório quando o identificador do aplicativo está em um atributo.", "label_attribute": "Nome amigável opcional do aplicativo mostrado no Home Assistant."}},
-      "behavior": {"title": "Defina o comportamento das sessões", "description": "Estas escolhas se aplicam a observações futuras deste monitor.", "data": {"retention_days": "Manter relatórios por (dias)", "minimum_session_seconds": "Ignorar sessões menores que (segundos)", "unavailable_behavior": "Se a fonte ficar indisponível", "unavailable_tolerance_seconds": "Aguardar antes de tratar fonte indisponível (segundos)", "merge_gap_seconds": "Ignorar pausas inativas menores que (segundos)"}, "data_description": {"retention_days": "Quantidade de dias de calendário a manter. Um período de relatório maior que este valor não poderá ser confiável.", "minimum_session_seconds": "Descarta sessões concluídas menores que esta duração. Defina 0 para manter todas as sessões.", "unavailable_behavior": "Como uma fonte desconhecida ou indisponível afeta a sessão em andamento.", "unavailable_tolerance_seconds": "Aguarda esta quantidade de segundos antes de aplicar o comportamento para fonte indisponível.", "merge_gap_seconds": "Trata uma breve pausa inativa observada como parte de uma única visita ou uso. A pausa é excluída da duração."}},
+      "behavior": {"title": "Defina o comportamento das sessões", "description": "Estas escolhas se aplicam a observações futuras deste monitor.", "data": {"duration_unit": "Formato de exibição da duração", "retention_days": "Manter relatórios por (dias)", "minimum_session_seconds": "Ignorar sessões menores que (segundos)", "unavailable_behavior": "Se a fonte ficar indisponível", "unavailable_tolerance_seconds": "Aguardar antes de tratar fonte indisponível (segundos)", "merge_gap_seconds": "Ignorar pausas inativas menores que (segundos)"}, "data_description": {"duration_unit": "Escolha como os sensores de duração são mostrados. Isso altera apenas a exibição, não o tempo registrado nem o histórico.", "retention_days": "Quantidade de dias de calendário a manter. Um período de relatório maior que este valor não poderá ser confiável.", "minimum_session_seconds": "Descarta sessões concluídas menores que esta duração. Defina 0 para manter todas as sessões.", "unavailable_behavior": "Como uma fonte desconhecida ou indisponível afeta a sessão em andamento.", "unavailable_tolerance_seconds": "Aguarda esta quantidade de segundos antes de aplicar o comportamento para fonte indisponível.", "merge_gap_seconds": "Trata uma breve pausa inativa observada como parte de uma única visita ou uso. A pausa é excluída da duração."}},
       "periods": {"title": "Escolha os períodos dos relatórios", "description": "Selecione um ou mais períodos para os sensores de relatório.", "data": {"periods": "Períodos de calendário para relatar", "rolling_days": "Períodos móveis extras (dias)"}, "data_description": {"periods": "Hoje começa à meia-noite local. A semana e o mês atuais seguem o calendário local do Home Assistant.", "rolling_days": "Valores inteiros positivos opcionais separados por vírgulas, por exemplo: 7, 30, 35."}},
       "metrics": {"title": "Escolha os sensores a criar", "description": "Somente as métricas selecionadas criam entidades.", "data": {"enabled_metrics": "Relatórios e sensores a criar"}, "data_description": {"enabled_metrics": "As métricas de duração e de quantidade de sessões são criadas para cada período selecionado. As métricas da sessão atual e da sessão mais recente criam uma entidade cada."}},
       "history": {"title": "Escolha o que fazer com o histórico", "description": "Use reimportar quando a regra alterada deve ser aplicada ao histórico disponível no Recorder. Isso substitui os resumos dentro do período de retenção.", "data": {"history_action": "Histórico existente"}, "data_description": {"history_action": "Manter preserva os resumos atuais; limpar os exclui; reimportar os reconstrói usando a fonte configurada e o histórico do Recorder."}},
@@ -149,6 +151,13 @@
         "end": "Encerrar a sessão — interrompe a atividade quando a fonte fica indisponível.",
         "pending": "Manter pendente — aguarda a fonte voltar antes de decidir.",
         "unknown": "Marcar o tempo como desconhecido — preserva o intervalo como incerto."
+      }
+    },
+    "duration_unit": {
+      "options": {
+        "s": "Segundos",
+        "min": "Minutos",
+        "h": "Horas"
       }
     },
     "history_action": {

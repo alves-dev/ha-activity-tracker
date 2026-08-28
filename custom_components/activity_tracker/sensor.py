@@ -23,6 +23,7 @@ from .const import (
     CONF_MONITOR_TYPE,
     CONF_PERIODS,
     DOMAIN,
+    DURATION_UNITS,
     INTEGRATION_NAME,
     METRIC_AVERAGE_DAILY_DURATION,
     METRIC_AVERAGE_SESSION_DURATION,
@@ -39,6 +40,7 @@ from .const import (
     METRIC_TOTAL_DURATION,
     METRIC_UNKNOWN_DURATION,
     METRIC_WEEKDAY_MAX,
+    OPT_DURATION_UNIT,
 )
 from .models import format_duration
 from .runtime import ActivityTrackerRuntime
@@ -94,12 +96,25 @@ class ActivityMetricSensor(SensorEntity):
         )
         if metric in _DURATION_METRICS:
             self._attr_device_class = SensorDeviceClass.DURATION
-            self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
+            self._attr_native_unit_of_measurement = self._duration_unit
             self._attr_state_class = SensorStateClass.MEASUREMENT
         elif metric in (METRIC_LAST_SESSION_START, METRIC_LAST_SESSION_END):
             self._attr_device_class = SensorDeviceClass.TIMESTAMP
         elif metric == METRIC_SESSION_COUNT:
             self._attr_state_class = SensorStateClass.TOTAL
+
+    @property
+    def _duration_unit(self) -> UnitOfTime:
+        """Return the selected unit, keeping legacy monitors in seconds."""
+        unit = self._runtime.entry.options.get(OPT_DURATION_UNIT, UnitOfTime.SECONDS)
+        return UnitOfTime(unit) if unit in DURATION_UNITS else UnitOfTime.SECONDS
+
+    def _duration_value(self, seconds: float | int | None) -> float | int | None:
+        """Convert canonical seconds to this monitor's presentation unit."""
+        if seconds is None or self._duration_unit == UnitOfTime.SECONDS:
+            return seconds
+        divisor = 60 if self._duration_unit == UnitOfTime.MINUTES else 3600
+        return seconds / divisor
 
     @property
     def native_value(self) -> Any:
@@ -139,7 +154,9 @@ class ActivityMetricSensor(SensorEntity):
                     seconds = (
                         datetime.now().astimezone() - session.started_at
                     ).total_seconds()
-            return seconds, {"formatted": format_duration(seconds)}
+            return self._duration_value(seconds), {
+                "formatted": format_duration(seconds)
+            }
         last = self._runtime.last_completed
         if self._metric.startswith("last_session"):
             if not last:
@@ -152,7 +169,11 @@ class ActivityMetricSensor(SensorEntity):
             value: Any = last[key]
             if self._metric != METRIC_LAST_SESSION_DURATION:
                 value = datetime.fromisoformat(value)
-            return value, {
+            return (
+                self._duration_value(value)
+                if self._metric == METRIC_LAST_SESSION_DURATION
+                else value
+            ), {
                 "quality": last["quality"],
                 "formatted": format_duration(last["duration_seconds"]),
             }
@@ -184,27 +205,34 @@ class ActivityMetricSensor(SensorEntity):
         total = sum(summary.total_seconds for summary in summaries)
         count = sum(summary.sessions_started for summary in summaries)
         if self._metric == METRIC_TOTAL_DURATION:
-            return total, {**base_attrs, "formatted": format_duration(total)}
+            return self._duration_value(total), {
+                **base_attrs,
+                "formatted": format_duration(total),
+            }
         if self._metric == METRIC_SESSION_COUNT:
             return count, base_attrs
         if self._metric == METRIC_UNKNOWN_DURATION:
-            return sum(summary.unknown_seconds for summary in summaries), base_attrs
+            return self._duration_value(
+                sum(summary.unknown_seconds for summary in summaries)
+            ), base_attrs
         if self._metric == METRIC_AVERAGE_DAILY_DURATION:
-            return total / len(summaries) if summaries else 0, base_attrs
+            return self._duration_value(
+                total / len(summaries) if summaries else 0
+            ), base_attrs
         if self._metric == METRIC_AVERAGE_SESSION_DURATION:
-            return total / count if count else None, base_attrs
+            return self._duration_value(total / count if count else None), base_attrs
         longest = max(
             (summary.longest_session_seconds for summary in summaries), default=0
         )
         if self._metric == METRIC_LONGEST_SESSION_DURATION:
-            return longest, base_attrs
+            return self._duration_value(longest), base_attrs
         if self._metric == METRIC_SHORTEST_SESSION_DURATION:
             values = [
                 summary.shortest_session_seconds
                 for summary in summaries
                 if summary.shortest_session_seconds is not None
             ]
-            return min(values) if values else None, base_attrs
+            return self._duration_value(min(values) if values else None), base_attrs
         return None, {}
 
     def _weekday_max(self) -> tuple[str | None, dict[str, Any]]:

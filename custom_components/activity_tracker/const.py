@@ -80,12 +80,15 @@ OPT_UNAVAILABLE_BEHAVIOR = "unavailable_behavior"
 OPT_UNAVAILABLE_TOLERANCE_SECONDS = "unavailable_tolerance_seconds"
 OPT_MERGE_GAP_SECONDS = "merge_gap_seconds"
 OPT_IMPORT_RECORDER_HISTORY = "import_recorder_history"
+OPT_DURATION_UNIT = "duration_unit"
 
 DEFAULT_RETENTION_DAYS = 90
 DEFAULT_MINIMUM_SESSION_SECONDS = 0
 DEFAULT_UNAVAILABLE_BEHAVIOR = "unknown"
 DEFAULT_UNAVAILABLE_TOLERANCE_SECONDS = 0
 DEFAULT_MERGE_GAP_SECONDS = 0
+DEFAULT_DURATION_UNIT = "h"
+DURATION_UNITS = ("s", "min", "h")
 
 
 def update_signal(entry_id: str) -> str:

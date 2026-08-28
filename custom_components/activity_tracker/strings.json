@@ -44,6 +44,7 @@
         "title": "Choose session behavior",
         "description": "These choices apply only to this monitor. They determine which completed activity is retained and how short interruptions are handled.",
         "data": {
+          "duration_unit": "Duration display format",
           "retention_days": "Keep reports for (days)",
           "minimum_session_seconds": "Ignore sessions shorter than (seconds)",
           "unavailable_behavior": "If the source becomes unavailable",
@@ -52,6 +53,7 @@
           "import_recorder_history": "Import previous history from Recorder"
         },
         "data_description": {
+          "duration_unit": "Choose how duration sensors are shown. This affects only the display, not tracked time or history.",
           "retention_days": "Number of calendar days to keep compact daily summaries. The minimum is 7 days; older summaries are deleted during cleanup.",
           "minimum_session_seconds": "Completed sessions shorter than this many seconds are discarded. Use 0 to keep every completed session.",
           "unavailable_behavior": "Choose whether an unavailable or unknown source ends activity, remains pending briefly, or is reported as unknown time.",
@@ -113,8 +115,8 @@
       "behavior": {
         "title": "Choose session behavior",
         "description": "These choices apply to future observations for this monitor.",
-        "data": {"retention_days": "Keep reports for (days)", "minimum_session_seconds": "Ignore sessions shorter than (seconds)", "unavailable_behavior": "If the source becomes unavailable", "unavailable_tolerance_seconds": "Wait before handling an unavailable source (seconds)", "merge_gap_seconds": "Ignore inactive gaps shorter than (seconds)"},
-        "data_description": {"retention_days": "Number of calendar days to retain. A longer report period cannot be reliable if it exceeds this value.", "minimum_session_seconds": "Discard completed sessions shorter than this duration. Set to 0 to keep all completed sessions.", "unavailable_behavior": "How an unknown or unavailable source affects the in-progress session.", "unavailable_tolerance_seconds": "Wait this many seconds before applying the unavailable behavior.", "merge_gap_seconds": "Treat a brief observed inactive interval as part of one visit or use session. The gap is excluded from duration."}
+        "data": {"duration_unit": "Duration display format", "retention_days": "Keep reports for (days)", "minimum_session_seconds": "Ignore sessions shorter than (seconds)", "unavailable_behavior": "If the source becomes unavailable", "unavailable_tolerance_seconds": "Wait before handling an unavailable source (seconds)", "merge_gap_seconds": "Ignore inactive gaps shorter than (seconds)"},
+        "data_description": {"duration_unit": "Choose how duration sensors are shown. This affects only the display, not tracked time or history.", "retention_days": "Number of calendar days to retain. A longer report period cannot be reliable if it exceeds this value.", "minimum_session_seconds": "Discard completed sessions shorter than this duration. Set to 0 to keep all completed sessions.", "unavailable_behavior": "How an unknown or unavailable source affects the in-progress session.", "unavailable_tolerance_seconds": "Wait this many seconds before applying the unavailable behavior.", "merge_gap_seconds": "Treat a brief observed inactive interval as part of one visit or use session. The gap is excluded from duration."}
       },
       "periods": {
         "title": "Choose report periods",
@@ -191,6 +193,13 @@
         "end": "End the session — stop activity when the source is unavailable.",
         "pending": "Keep it pending — wait for the source to return before deciding.",
         "unknown": "Mark the time as unknown — preserve the interval as uncertain."
+      }
+    },
+    "duration_unit": {
+      "options": {
+        "s": "Seconds",
+        "min": "Minutes",
+        "h": "Hours"
       }
     },
     "history_action": {

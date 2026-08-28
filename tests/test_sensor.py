@@ -21,6 +21,7 @@ from custom_components.activity_tracker.const import (
     METRIC_TOTAL_DURATION,
     METRIC_UNKNOWN_DURATION,
     METRIC_WEEKDAY_MAX,
+    OPT_DURATION_UNIT,
     OPT_RETENTION_DAYS,
 )
 from custom_components.activity_tracker.models import DailySummary, Session
@@ -110,3 +111,16 @@ def test_metric_availability_weekday_and_application_values() -> None:
     assert current.native_value is None
     assert _metric_name(METRIC_TOTAL_DURATION, "rolling_days:35").endswith("Last 35")
     assert _metric_icon(METRIC_SESSION_COUNT) == "mdi:counter"
+
+
+def test_duration_sensors_convert_only_their_presentation_values() -> None:
+    runtime = _runtime()
+    runtime.entry.options[OPT_DURATION_UNIT] = "h"
+
+    total = ActivityMetricSensor(runtime, METRIC_TOTAL_DURATION, "current_day")
+    latest = ActivityMetricSensor(runtime, METRIC_LAST_SESSION_DURATION)
+
+    assert total.native_value == 600 / 3600
+    assert latest.native_value == 300 / 3600
+    assert total.native_unit_of_measurement == "h"
+    assert total.extra_state_attributes["formatted"] == "10min 0s"

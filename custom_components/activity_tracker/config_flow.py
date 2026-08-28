@@ -22,14 +22,17 @@ from .const import (
     CONF_VALUE_ATTRIBUTE,
     CONF_VALUE_SOURCE,
     CONF_ZONE_ENTITY_ID,
+    DEFAULT_DURATION_UNIT,
     DEFAULT_MERGE_GAP_SECONDS,
     DEFAULT_MINIMUM_SESSION_SECONDS,
     DEFAULT_RETENTION_DAYS,
     DEFAULT_UNAVAILABLE_BEHAVIOR,
     DEFAULT_UNAVAILABLE_TOLERANCE_SECONDS,
     DOMAIN,
+    DURATION_UNITS,
     METRICS,
     MONITOR_TYPES,
+    OPT_DURATION_UNIT,
     OPT_IMPORT_RECORDER_HISTORY,
     OPT_MERGE_GAP_SECONDS,
     OPT_MINIMUM_SESSION_SECONDS,
@@ -210,6 +213,7 @@ class ActivityTrackerOptionsFlow(config_entries.OptionsFlow):
             self._monitor = dict(self.config_entry.data)
             self._monitor[CONF_MONITOR_TYPE] = user_input[CONF_MONITOR_TYPE]
             self._options = dict(self.config_entry.options)
+            self._options.setdefault(OPT_DURATION_UNIT, "s")
             return await self.async_step_source()
         return self.async_show_form(
             step_id="init",
@@ -539,6 +543,16 @@ def _behavior_schema(
 ) -> vol.Schema:
     defaults = defaults or {}
     fields: dict[Any, Any] = {
+        vol.Required(
+            OPT_DURATION_UNIT,
+            default=defaults.get(OPT_DURATION_UNIT, DEFAULT_DURATION_UNIT),
+        ): selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=list(DURATION_UNITS),
+                mode=selector.SelectSelectorMode.LIST,
+                translation_key="duration_unit",
+            )
+        ),
         vol.Required(
             OPT_RETENTION_DAYS,
             default=defaults.get(OPT_RETENTION_DAYS, DEFAULT_RETENTION_DAYS),
