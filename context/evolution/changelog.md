@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-31 — Correção dos assets de marca
+
+- Corrigido o conjunto de ícones e logos da integração com variantes claras e
+  escuras distintas, transparência e resoluções normais e de alta densidade
+  compatíveis com o padrão de integrações Home Assistant.
+
 ## 2026-08-31 — Seleção de sensores por período
 
 - Sensores de relatório agora são selecionados individualmente para cada período
