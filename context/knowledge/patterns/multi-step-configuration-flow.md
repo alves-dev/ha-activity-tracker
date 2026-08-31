@@ -10,7 +10,14 @@ Use this pattern when adding monitor settings, new activity-rule inputs, or vali
 
 ## Pattern
 
-Keep intermediate monitor data and options in flow-local dictionaries. Each step validates only its own inputs and advances on success. Validate cross-field requirements before moving forward, then use a final review step before the entry is created or updated. When an edit can destroy or replace persisted history, add a separate unselected confirmation step and perform the mutation only after it succeeds.
+Keep intermediate monitor data and options in flow-local dictionaries. Each step
+validates only its own inputs and advances on success. For selections that
+depend on an earlier choice, repeat a focused step for each selected item (for
+example, report metrics for each report period). Validate cross-field
+requirements before moving forward, then use a final review step before the
+entry is created or updated. When an edit can destroy or replace persisted
+history, add a separate unselected confirmation step and perform the mutation
+only after it succeeds.
 
 ## Example
 
@@ -37,6 +44,7 @@ async def async_step_metrics(self, user_input: dict[str, Any] | None = None):
 - [Decision: Home Assistant Config-Entry Integration](../../decisions/002-home-assistant-integration-architecture.md)
 - [Feature: Guided Monitor Management](../../intent/feature-guided-monitor-management.md)
 - [Decision: Administrative History Actions and Redacted Diagnostics](../../decisions/010-administrative-history-and-diagnostics.md)
+- [Decision: Period-Specific Report Sensor Selection](../../decisions/012-period-specific-report-sensor-selection.md)
 
 ## Status
 

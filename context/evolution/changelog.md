@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-08-31 — Seleção de sensores por período
+
+- Sensores de relatório agora são selecionados individualmente para cada período
+  escolhido; por exemplo, a média de duração de sessão pode existir somente para
+  os últimos 30 dias, sem um sensor equivalente para hoje.
+- Monitores existentes são migrados de forma compatível, mantendo os mesmos
+  pares de sensores até que o usuário altere a configuração.
+
 ## 2026-08-28 — SonarQube follow-up cleanup
 
 - Simplified diagnostics import-result construction and replaced mutation-safe

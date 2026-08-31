@@ -10,7 +10,7 @@ Users need concise answers to both current and historical questions about activi
 
 ## Acceptance Criteria
 
-- [ ] Users can select which measurements a monitor exposes.
+- [ ] Users can select which measurements a monitor exposes for each report period.
 - [ ] Duration and count reports are available for selected calendar and rolling periods.
 - [ ] Current activity and latest completed activity information are available when relevant.
 - [ ] A report indicates when a requested rolling range exceeds retained history.
@@ -28,6 +28,8 @@ Users need concise answers to both current and historical questions about activi
   user-actionable next step.
 - [x] Each monitor can publish duration reports in hours, minutes, or seconds
   without changing its retained accounting data.
+- [x] Period-aware measurements can be selected independently for each calendar
+  or rolling-day report period.
 
 ## Related
 
@@ -39,6 +41,7 @@ Users need concise answers to both current and historical questions about activi
 - [Pattern: Selected Metric Entity Factory](../knowledge/patterns/selected-metric-entity-factory.md)
 - [Decision: Administrative History Actions and Redacted Diagnostics](../decisions/010-administrative-history-and-diagnostics.md)
 - [Decision: Per-Monitor Duration Presentation Unit](../decisions/011-duration-presentation-unit.md)
+- [Decision: Period-Specific Report Sensor Selection](../decisions/012-period-specific-report-sensor-selection.md)
 
 ## Status
 

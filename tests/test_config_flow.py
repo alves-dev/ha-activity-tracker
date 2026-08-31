@@ -18,6 +18,7 @@ from custom_components.activity_tracker.const import (
     CONF_ENTITY_ID,
     CONF_MONITOR_TYPE,
     CONF_NAME,
+    CONF_PERIOD_METRICS,
     CONF_PERIODS,
     OPT_DURATION_UNIT,
     TYPE_ENTITY_STATE,
@@ -84,17 +85,32 @@ async def test_config_flow_runs_the_complete_entity_monitor_journey() -> None:
     assert periods["step_id"] == "periods"
     invalid = await flow.async_step_periods({CONF_PERIODS: [], "rolling_days": "zero"})
     assert invalid["errors"] == {CONF_PERIODS: "required"}
-    metrics = await flow.async_step_periods(
+    period_metrics = await flow.async_step_periods(
         {CONF_PERIODS: ["current_day"], "rolling_days": "7, 35"}
     )
+    assert period_metrics["step_id"] == "period_metrics"
+    assert (
+        await flow.async_step_period_metrics({CONF_PERIOD_METRICS: ["total_duration"]})
+    )["step_id"] == "period_metrics"
+    assert (
+        await flow.async_step_period_metrics(
+            {CONF_PERIOD_METRICS: ["session_count"]}
+        )
+    )["step_id"] == "period_metrics"
+    metrics = await flow.async_step_period_metrics(
+        {CONF_PERIOD_METRICS: ["average_session_duration"]}
+    )
     assert metrics["step_id"] == "metrics"
-    missing = await flow.async_step_metrics({CONF_ENABLED_METRICS: []})
-    assert missing["errors"] == {CONF_ENABLED_METRICS: "required"}
-    review = await flow.async_step_metrics({CONF_ENABLED_METRICS: ["total_duration"]})
+    review = await flow.async_step_metrics({CONF_ENABLED_METRICS: []})
     assert review["step_id"] == "review"
     created = await flow.async_step_review({})
     assert created["title"] == "Television"
     assert created["data"][CONF_ACTIVE_STATES] == ["on", "playing"]
+    assert created["data"][CONF_PERIOD_METRICS] == {
+        "current_day": ["total_duration"],
+        "rolling_days:7": ["session_count"],
+        "rolling_days:35": ["average_session_duration"],
+    }
     assert created["options"][OPT_DURATION_UNIT] == "h"
 
 
@@ -168,15 +184,28 @@ async def test_options_flow_edits_a_complete_monitor() -> None:
         await flow.async_step_periods(
             {CONF_PERIODS: ["current_week"], "rolling_days": "7"}
         )
+    )["step_id"] == "period_metrics"
+    assert (
+        await flow.async_step_period_metrics(
+            {CONF_PERIOD_METRICS: ["total_duration"]}
+        )
+    )["step_id"] == "period_metrics"
+    assert (
+        await flow.async_step_period_metrics(
+            {CONF_PERIOD_METRICS: ["session_count"]}
+        )
     )["step_id"] == "metrics"
-    assert (await flow.async_step_metrics({CONF_ENABLED_METRICS: ["session_count"]}))[
+    assert (await flow.async_step_metrics({CONF_ENABLED_METRICS: []}))[
         "step_id"
     ] == "history"
     created = await flow.async_step_history({"history_action": "keep"})
 
     assert created["data"]["retention_days"] == 30
     assert updates[0]["title"] == "New monitor"
-    assert updates[0]["data"][CONF_PERIODS] == ["current_week", "rolling_days:7"]
+    assert updates[0]["data"][CONF_PERIOD_METRICS] == {
+        "current_week": ["total_duration"],
+        "rolling_days:7": ["session_count"],
+    }
 
 
 async def test_options_flow_confirms_destructive_history_actions() -> None:
@@ -221,8 +250,11 @@ async def test_options_flow_confirms_destructive_history_actions() -> None:
     )
     await flow.async_step_behavior({"retention_days": 90})
     await flow.async_step_periods({CONF_PERIODS: ["current_day"], "rolling_days": ""})
+    await flow.async_step_period_metrics(
+        {CONF_PERIOD_METRICS: ["total_duration"]}
+    )
     assert (
-        await flow.async_step_metrics({CONF_ENABLED_METRICS: ["total_duration"]})
+        await flow.async_step_metrics({CONF_ENABLED_METRICS: []})
     )["step_id"] == "history"
     assert (
         await flow.async_step_history({"history_action": "clear"})
@@ -262,11 +294,16 @@ async def test_options_flow_skips_history_step_for_presentation_only_edit() -> N
     flow.handler = entry.entry_id
     flow.async_show_form = lambda **kwargs: kwargs
     flow.async_create_entry = lambda **kwargs: kwargs
-    flow._monitor = {**entry.data, CONF_NAME: "Renamed"}
+    flow._monitor = {
+        **entry.data,
+        CONF_PERIOD_METRICS: {"current_day": ["total_duration"]},
+        CONF_NAME: "Renamed",
+    }
+    flow._monitor.pop(CONF_PERIODS)
     flow._options = {**entry.options, "retention_days": 30}
 
     result = await flow.async_step_metrics(
-        {CONF_ENABLED_METRICS: ["total_duration", "session_count"]}
+        {CONF_ENABLED_METRICS: []}
     )
 
     assert result["data"]["retention_days"] == 30
@@ -298,10 +335,14 @@ async def test_options_flow_treats_duration_unit_as_presentation_only() -> None:
     flow.handler = entry.entry_id
     flow.async_show_form = lambda **kwargs: kwargs
     flow.async_create_entry = lambda **kwargs: kwargs
-    flow._monitor = dict(entry.data)
+    flow._monitor = {
+        **entry.data,
+        CONF_PERIOD_METRICS: {"current_day": ["total_duration"]},
+    }
+    flow._monitor.pop(CONF_PERIODS)
     flow._options = {**entry.options, OPT_DURATION_UNIT: "min"}
 
-    result = await flow.async_step_metrics({CONF_ENABLED_METRICS: ["total_duration"]})
+    result = await flow.async_step_metrics({CONF_ENABLED_METRICS: []})
 
     assert result["data"][OPT_DURATION_UNIT] == "min"
 

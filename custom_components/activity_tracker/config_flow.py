@@ -8,6 +8,11 @@ from homeassistant import config_entries
 from homeassistant.helpers import selector
 import voluptuous as vol
 
+from .configuration import (
+    migrate_monitor_data,
+    monitor_metric_selections,
+    period_metric_selections,
+)
 from .const import (
     CONF_ACTIVE_STATES,
     CONF_AREA_ID,
@@ -16,6 +21,7 @@ from .const import (
     CONF_LABEL_ATTRIBUTE,
     CONF_MONITOR_TYPE,
     CONF_NAME,
+    CONF_PERIOD_METRICS,
     CONF_PERIODS,
     CONF_PERSON_ENTITY_ID,
     CONF_PRESENCE_ENTITY_ID,
@@ -32,6 +38,7 @@ from .const import (
     DURATION_UNITS,
     METRICS,
     MONITOR_TYPES,
+    NON_PERIOD_METRICS,
     OPT_DURATION_UNIT,
     OPT_IMPORT_RECORDER_HISTORY,
     OPT_MERGE_GAP_SECONDS,
@@ -39,6 +46,7 @@ from .const import (
     OPT_RETENTION_DAYS,
     OPT_UNAVAILABLE_BEHAVIOR,
     OPT_UNAVAILABLE_TOLERANCE_SECONDS,
+    PERIOD_METRICS,
     PERIODS,
     TYPE_AREA_PRESENCE,
     TYPE_FOREGROUND_APPLICATION,
@@ -49,11 +57,13 @@ from .const import (
 class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Create exactly one monitor per config entry."""
 
-    VERSION = 1
+    VERSION = 2
 
     def __init__(self) -> None:
         self._monitor: dict[str, Any] = {}
         self._options: dict[str, Any] = {}
+        self._period_metric_index = 0
+        self._period_metric_choices: dict[str, list[str]] = {}
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
         if user_input is not None:
@@ -132,8 +142,10 @@ class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             elif invalid_rolling:
                 errors["rolling_days"] = "invalid_rolling_days"
             else:
-                self._monitor[CONF_PERIODS] = periods + rolling
-                return await self.async_step_metrics()
+                self._monitor[CONF_PERIODS] = list(dict.fromkeys(periods + rolling))
+                self._period_metric_index = 0
+                self._period_metric_choices = {}
+                return await self.async_step_period_metrics()
         schema = vol.Schema(
             {
                 vol.Optional(CONF_PERIODS, default=[]): selector.SelectSelector(
@@ -150,22 +162,63 @@ class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="periods", data_schema=schema, errors=errors
         )
 
+    async def async_step_period_metrics(
+        self, user_input: dict[str, Any] | None = None
+    ):
+        """Collect the period-aware sensors for one selected report period."""
+        periods = self._monitor[CONF_PERIODS]
+        period = periods[self._period_metric_index]
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            metrics = [
+                metric
+                for metric in user_input.get(CONF_PERIOD_METRICS, [])
+                if metric in PERIOD_METRICS
+            ]
+            if not metrics:
+                errors[CONF_PERIOD_METRICS] = "required"
+            else:
+                self._period_metric_choices[period] = metrics
+                self._period_metric_index += 1
+                if self._period_metric_index < len(periods):
+                    return await self.async_step_period_metrics()
+                self._monitor[CONF_PERIOD_METRICS] = self._period_metric_choices
+                self._monitor.pop(CONF_PERIODS, None)
+                return await self.async_step_metrics()
+        return self.async_show_form(
+            step_id="period_metrics",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_PERIOD_METRICS): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=_period_metric_options(),
+                            multiple=True,
+                            translation_key="metric",
+                        )
+                    )
+                }
+            ),
+            errors=errors,
+            description_placeholders={"period": period},
+        )
+
     async def async_step_metrics(self, user_input: dict[str, Any] | None = None):
         errors: dict[str, str] = {}
         if user_input is not None:
             metrics = list(user_input.get(CONF_ENABLED_METRICS, []))
-            if not metrics:
-                errors[CONF_ENABLED_METRICS] = "required"
-            else:
-                self._monitor[CONF_ENABLED_METRICS] = metrics
-                return await self.async_step_review()
+            self._monitor[CONF_ENABLED_METRICS] = [
+                metric for metric in metrics if metric in NON_PERIOD_METRICS
+            ]
+            return await self.async_step_review()
         return self.async_show_form(
             step_id="metrics",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_ENABLED_METRICS): selector.SelectSelector(
+                    vol.Optional(
+                        CONF_ENABLED_METRICS, default=[]
+                    ): selector.SelectSelector(
                         selector.SelectSelectorConfig(
-                            options=list(METRICS),
+                            options=list(NON_PERIOD_METRICS),
                             multiple=True,
                             translation_key="metric",
                         )
@@ -190,8 +243,14 @@ class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 "source": self._monitor.get(
                     CONF_ENTITY_ID, self._monitor.get(CONF_PRESENCE_ENTITY_ID, "")
                 ),
-                "periods": ", ".join(self._monitor[CONF_PERIODS]),
-                "metrics": str(len(self._monitor[CONF_ENABLED_METRICS])),
+                "periods": ", ".join(self._monitor[CONF_PERIOD_METRICS]),
+                "metrics": str(
+                    sum(
+                        len(metrics)
+                        for metrics in self._monitor[CONF_PERIOD_METRICS].values()
+                    )
+                    + len(self._monitor[CONF_ENABLED_METRICS])
+                ),
             },
         )
 
@@ -207,10 +266,12 @@ class ActivityTrackerOptionsFlow(config_entries.OptionsFlow):
         self._monitor: dict[str, Any] = {}
         self._options: dict[str, Any] = {}
         self._history_action = "keep"
+        self._period_metric_index = 0
+        self._period_metric_choices: dict[str, list[str]] = {}
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
         if user_input is not None:
-            self._monitor = dict(self.config_entry.data)
+            self._monitor = migrate_monitor_data(self.config_entry.data)
             self._monitor[CONF_MONITOR_TYPE] = user_input[CONF_MONITOR_TYPE]
             self._options = dict(self.config_entry.options)
             self._options.setdefault(OPT_DURATION_UNIT, "s")
@@ -285,9 +346,11 @@ class ActivityTrackerOptionsFlow(config_entries.OptionsFlow):
             elif invalid_rolling:
                 errors["rolling_days"] = "invalid_rolling_days"
             else:
-                self._monitor[CONF_PERIODS] = periods + rolling
-                return await self.async_step_metrics()
-        current_periods = self._monitor.get(CONF_PERIODS, [])
+                self._monitor[CONF_PERIODS] = list(dict.fromkeys(periods + rolling))
+                self._period_metric_index = 0
+                self._period_metric_choices = {}
+                return await self.async_step_period_metrics()
+        current_periods = list(period_metric_selections(self._monitor))
         rolling = ", ".join(
             item.split(":", 1)[1]
             for item in current_periods
@@ -317,32 +380,74 @@ class ActivityTrackerOptionsFlow(config_entries.OptionsFlow):
             errors=errors,
         )
 
+    async def async_step_period_metrics(
+        self, user_input: dict[str, Any] | None = None
+    ):
+        """Collect the period-aware sensors for one edited report period."""
+        periods = self._monitor[CONF_PERIODS]
+        period = periods[self._period_metric_index]
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            metrics = [
+                metric
+                for metric in user_input.get(CONF_PERIOD_METRICS, [])
+                if metric in PERIOD_METRICS
+            ]
+            if not metrics:
+                errors[CONF_PERIOD_METRICS] = "required"
+            else:
+                self._period_metric_choices[period] = metrics
+                self._period_metric_index += 1
+                if self._period_metric_index < len(periods):
+                    return await self.async_step_period_metrics()
+                self._monitor[CONF_PERIOD_METRICS] = self._period_metric_choices
+                self._monitor.pop(CONF_PERIODS, None)
+                return await self.async_step_metrics()
+        return self.async_show_form(
+            step_id="period_metrics",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_PERIOD_METRICS,
+                        default=period_metric_selections(self._monitor).get(period, []),
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=_period_metric_options(),
+                            multiple=True,
+                            translation_key="metric",
+                        )
+                    )
+                }
+            ),
+            errors=errors,
+            description_placeholders={"period": period},
+        )
+
     async def async_step_metrics(self, user_input: dict[str, Any] | None = None):
         errors: dict[str, str] = {}
         if user_input is not None:
             metrics = list(user_input.get(CONF_ENABLED_METRICS, []))
-            if not metrics:
-                errors[CONF_ENABLED_METRICS] = "required"
-            else:
-                self._monitor[CONF_ENABLED_METRICS] = metrics
-                if _is_rule_changing(
-                    self.config_entry.data,
-                    self.config_entry.options,
-                    self._monitor,
-                    self._options,
-                ):
-                    return await self.async_step_history()
-                return await self._async_save_options()
+            self._monitor[CONF_ENABLED_METRICS] = [
+                metric for metric in metrics if metric in NON_PERIOD_METRICS
+            ]
+            if _is_rule_changing(
+                self.config_entry.data,
+                self.config_entry.options,
+                self._monitor,
+                self._options,
+            ):
+                return await self.async_step_history()
+            return await self._async_save_options()
         return self.async_show_form(
             step_id="metrics",
             data_schema=vol.Schema(
                 {
-                    vol.Required(
+                    vol.Optional(
                         CONF_ENABLED_METRICS,
-                        default=self._monitor.get(CONF_ENABLED_METRICS, []),
+                        default=monitor_metric_selections(self._monitor),
                     ): selector.SelectSelector(
                         selector.SelectSelectorConfig(
-                            options=list(METRICS),
+                            options=list(NON_PERIOD_METRICS),
                             multiple=True,
                             translation_key="metric",
                         )
@@ -624,6 +729,11 @@ def _rolling_periods(value: object) -> tuple[list[str], bool]:
         else:
             invalid = True
     return result, invalid
+
+
+def _period_metric_options() -> list[str]:
+    """Return period-aware metrics in the established selector order."""
+    return [metric for metric in METRICS if metric in PERIOD_METRICS]
 
 
 def _source_guidance(monitor_type: str) -> str:

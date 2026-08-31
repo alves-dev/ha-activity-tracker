@@ -74,14 +74,24 @@
           "rolling_days": "Optional positive whole-day values separated by commas, for example: 7, 30, 35. “35” means today plus the previous 34 local dates."
         }
       },
-      "metrics": {
+      "period_metrics": {
         "title": "Choose sensors to create",
-        "description": "Only selected metrics create entities. Choose the questions you actually need answered.",
+        "description": "Select the report sensors to create for {period}.",
         "data": {
-          "enabled_metrics": "Reports and sensors to create"
+          "period_metrics": "Reports and sensors to create for this period"
         },
         "data_description": {
-          "enabled_metrics": "Duration and session-count metrics are created for every selected period. Current and latest-session metrics create one entity each."
+          "period_metrics": "Each selected metric creates an entity only for this report period."
+        }
+      },
+      "metrics": {
+        "title": "Choose monitor-wide sensors",
+        "description": "Optionally select sensors that do not use a report period.",
+        "data": {
+          "enabled_metrics": "Monitor-wide sensors to create"
+        },
+        "data_description": {
+          "enabled_metrics": "Current, latest-session, and weekday sensors create one entity for this monitor."
         }
       },
       "review": {
@@ -124,11 +134,17 @@
         "data": {"periods": "Calendar periods to report", "rolling_days": "Extra rolling periods (days)"},
         "data_description": {"periods": "Today starts at local midnight. Current week and month follow Home Assistant's local calendar.", "rolling_days": "Optional positive whole-day values separated by commas, for example: 7, 30, 35."}
       },
-      "metrics": {
+      "period_metrics": {
         "title": "Choose sensors to create",
-        "description": "Only selected metrics create entities.",
-        "data": {"enabled_metrics": "Reports and sensors to create"},
-        "data_description": {"enabled_metrics": "Duration and session-count metrics are created for every selected period. Current and latest-session metrics create one entity each."}
+        "description": "Select the report sensors to create for {period}.",
+        "data": {"period_metrics": "Reports and sensors to create for this period"},
+        "data_description": {"period_metrics": "Each selected metric creates an entity only for this report period."}
+      },
+      "metrics": {
+        "title": "Choose monitor-wide sensors",
+        "description": "Optionally select sensors that do not use a report period.",
+        "data": {"enabled_metrics": "Monitor-wide sensors to create"},
+        "data_description": {"enabled_metrics": "Current, latest-session, and weekday sensors create one entity for this monitor."}
       },
       "history": {
         "title": "Choose what to do with history",

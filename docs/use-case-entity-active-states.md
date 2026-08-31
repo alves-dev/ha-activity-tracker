@@ -23,8 +23,8 @@ or week.
 1. Create a monitor and choose **Entity active states**.
 2. Select, for example, `media_player.sala`.
 3. Enter the states that represent use, such as `on`, `playing`, and `paused`.
-4. Select the desired periods and sensors, such as **Total activity duration**
-   and **Number of sessions**.
+4. Select the desired periods, then choose sensors for each one, such as
+   **Total activity duration** and **Number of sessions**.
 
 The monitor considers an entity active only while its state matches one of the
 entered states. Moving from `playing` to `paused`, for example, keeps the same

@@ -18,10 +18,9 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .configuration import monitor_metric_selections, period_metric_selections
 from .const import (
-    CONF_ENABLED_METRICS,
     CONF_MONITOR_TYPE,
-    CONF_PERIODS,
     DOMAIN,
     DURATION_UNITS,
     INTEGRATION_NAME,
@@ -45,31 +44,20 @@ from .const import (
 from .models import format_duration
 from .runtime import ActivityTrackerRuntime
 
-PERIOD_METRICS = {
-    METRIC_TOTAL_DURATION,
-    METRIC_SESSION_COUNT,
-    METRIC_AVERAGE_DAILY_DURATION,
-    METRIC_AVERAGE_SESSION_DURATION,
-    METRIC_LONGEST_SESSION_DURATION,
-    METRIC_SHORTEST_SESSION_DURATION,
-    METRIC_UNKNOWN_DURATION,
-}
-
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     runtime: ActivityTrackerRuntime = hass.data[DOMAIN][entry.entry_id]
-    metrics = entry.data.get(CONF_ENABLED_METRICS, [])
-    periods = entry.data.get(CONF_PERIODS, [])
     entities: list[SensorEntity] = []
-    for metric in metrics:
-        if metric in PERIOD_METRICS:
-            entities.extend(
-                ActivityMetricSensor(runtime, metric, period) for period in periods
-            )
-        else:
-            entities.append(ActivityMetricSensor(runtime, metric))
+    for period, metrics in period_metric_selections(entry.data).items():
+        entities.extend(
+            ActivityMetricSensor(runtime, metric, period) for metric in metrics
+        )
+    entities.extend(
+        ActivityMetricSensor(runtime, metric)
+        for metric in monitor_metric_selections(entry.data)
+    )
     if entry.data.get(CONF_MONITOR_TYPE) == "foreground_application":
         entities.append(CurrentApplicationSensor(runtime))
     async_add_entities(entities)

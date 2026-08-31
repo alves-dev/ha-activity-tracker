@@ -33,7 +33,7 @@ In HACS, add this repository as a **Custom repository** with category **Integrat
 
 ## Configuration and operation
 
-Add **Activity Tracker** from *Settings → Devices & services → Add integration*. The guided flow selects the monitor source, behavior, report periods, and exactly which metric entities to create. At least one metric and one period are required.
+Add **Activity Tracker** from *Settings → Devices & services → Add integration*. The guided flow selects the monitor source, behavior, report periods, and exactly which metric entities to create for each period. At least one report metric and one period are required.
 
 ### [pt-BR] Tipos de monitor
 
@@ -58,9 +58,11 @@ Add **Activity Tracker** from *Settings → Devices & services → Add integrati
 ### [pt-BR] Sensores que podem ser escolhidos
 
 Durante a configuração, escolha um ou mais períodos (hoje, semana atual, mês
-atual ou uma faixa móvel de dias) e os sensores de relatório desejados. Os
-sensores marcados como **por período** são criados uma vez para cada período
-selecionado; os demais são criados uma única vez por monitor.
+atual ou uma faixa móvel de dias) e, em seguida, escolha os sensores de relatório
+para cada período. Os sensores marcados como **por período** são criados somente
+nos períodos em que forem selecionados; os demais são criados uma única vez por
+monitor. Por exemplo, você pode criar **Duração média das sessões** apenas para
+os últimos 30 dias, sem criá-la para hoje.
 
 | Sensor selecionável              | O que mostra                                                                   | Criação             |
 |----------------------------------|--------------------------------------------------------------------------------|---------------------|
@@ -88,9 +90,10 @@ lista acima.
 ### [en] Selectable sensors
 
 During setup, choose one or more periods (today, current week, current month,
-or a rolling range of days) and the report sensors you want. Sensors marked
-**per period** are created once for each selected period; all others are created
-once per monitor.
+or a rolling range of days), then choose the report sensors for each period.
+Sensors marked **per period** are created only for periods where you select them;
+all others are created once per monitor. For example, you can create **Average
+session duration** only for the last 30 days, without creating it for today.
 
 | Selectable sensor          | What it reports                                                        | Created          |
 |----------------------------|------------------------------------------------------------------------|------------------|

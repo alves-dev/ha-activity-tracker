@@ -5,6 +5,7 @@ from __future__ import annotations
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
+from .configuration import migrate_monitor_data
 from .const import DOMAIN, PLATFORMS
 from .runtime import ActivityTrackerRuntime
 
@@ -16,6 +17,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await runtime.async_setup()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+    return True
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate Cartesian report selections to period-specific selections."""
+    if entry.version > 2:
+        return False
+    if entry.version < 2:
+        hass.config_entries.async_update_entry(
+            entry,
+            data=migrate_monitor_data(entry.data),
+            version=2,
+        )
     return True
 
 

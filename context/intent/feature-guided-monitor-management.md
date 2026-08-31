@@ -10,7 +10,7 @@ The setup experience makes activity tracking available to Home Assistant users w
 
 ## Acceptance Criteria
 
-- [ ] Setup guides the user through choosing an activity, behavior, reporting periods, and measurements.
+- [ ] Setup guides the user through choosing an activity, behavior, reporting periods, and measurements for each period.
 - [ ] Setup requires at least one reporting period and one measurement.
 - [ ] Users can edit an existing monitor's definition and reporting choices.
 - [ ] The monitor has a user-provided name.
@@ -22,6 +22,8 @@ The setup experience makes activity tracking available to Home Assistant users w
 - [x] Clearing or reimporting history requires an explicit final confirmation.
 - [x] Users can choose the duration display unit for each monitor without a
   history action.
+- [x] Users can choose report measurements independently for each selected
+  reporting period.
 
 ## Related
 
@@ -30,6 +32,7 @@ The setup experience makes activity tracking available to Home Assistant users w
 - [Pattern: Multi-Step Configuration Flow](../knowledge/patterns/multi-step-configuration-flow.md)
 - [Decision: Administrative History Actions and Redacted Diagnostics](../decisions/010-administrative-history-and-diagnostics.md)
 - [Decision: Per-Monitor Duration Presentation Unit](../decisions/011-duration-presentation-unit.md)
+- [Decision: Period-Specific Report Sensor Selection](../decisions/012-period-specific-report-sensor-selection.md)
 
 ## Status
 

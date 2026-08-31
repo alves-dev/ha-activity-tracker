@@ -24,7 +24,8 @@ exposes the app currently visible to the user.
 2. Select the entity that reports the application.
 3. Choose whether the identifier comes from the entity state or an attribute;
    if needed, enter an optional attribute with the application's friendly name.
-4. Select the periods and duration or session sensors you want to track.
+4. Select the periods, then choose the duration or session sensors you want for
+   each period.
 
 Each application change ends the previous session and starts another one. In
 addition to the selected sensors, this monitor type automatically creates

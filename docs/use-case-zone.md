@@ -23,8 +23,9 @@ in a Home Assistant zone, such as a gym.
 1. Create the gym zone in Home Assistant if it does not already exist.
 2. Create a monitor and choose **Person or device in a zone**.
 3. Select the person or `device_tracker`, then choose the gym zone.
-4. Select sensors such as **Total activity duration**, **Number of sessions**,
-   and **Average session duration**.
+4. Select the report periods, then choose sensors such as **Total activity
+   duration**, **Number of sessions**, and **Average session duration** for the
+   period where each report is useful.
 
 A session starts when the source reports the selected zone and ends when it
 reports another location. For the home zone, the recognized value is `home`.
