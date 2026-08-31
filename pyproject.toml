@@ -1,6 +1,6 @@
 [project]
 name = "ha-activity-tracker"
-version = "2026.8.0"
+version = "2026.8.1"
 description = "Home Assistant custom integration for activity duration tracking"
 requires-python = ">=3.14.2"
 dependencies = ["homeassistant==2026.8.0"]

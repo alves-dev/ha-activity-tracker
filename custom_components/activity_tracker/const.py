@@ -6,7 +6,7 @@ from homeassistant.const import Platform
 
 DOMAIN = "activity_tracker"
 INTEGRATION_NAME = "Activity Tracker"
-INTEGRATION_VERSION = "2026.8.0"
+INTEGRATION_VERSION = "2026.8.1"
 PLATFORMS = (Platform.BINARY_SENSOR, Platform.SENSOR)
 
 CONF_MONITOR_TYPE = "monitor_type"
@@ -21,6 +21,7 @@ CONF_VALUE_ATTRIBUTE = "value_attribute"
 CONF_LABEL_ATTRIBUTE = "label_attribute"
 CONF_NAME = "name"
 CONF_PERIODS = "periods"
+CONF_PERIOD_METRICS = "period_metrics"
 CONF_ENABLED_METRICS = "enabled_metrics"
 
 TYPE_ENTITY_STATE = "entity_state"
@@ -74,18 +75,34 @@ METRICS = (
     METRIC_UNKNOWN_DURATION,
 )
 
+PERIOD_METRICS = frozenset(
+    {
+        METRIC_TOTAL_DURATION,
+        METRIC_SESSION_COUNT,
+        METRIC_AVERAGE_DAILY_DURATION,
+        METRIC_AVERAGE_SESSION_DURATION,
+        METRIC_LONGEST_SESSION_DURATION,
+        METRIC_SHORTEST_SESSION_DURATION,
+        METRIC_UNKNOWN_DURATION,
+    }
+)
+NON_PERIOD_METRICS = tuple(metric for metric in METRICS if metric not in PERIOD_METRICS)
+
 OPT_RETENTION_DAYS = "retention_days"
 OPT_MINIMUM_SESSION_SECONDS = "minimum_session_seconds"
 OPT_UNAVAILABLE_BEHAVIOR = "unavailable_behavior"
 OPT_UNAVAILABLE_TOLERANCE_SECONDS = "unavailable_tolerance_seconds"
 OPT_MERGE_GAP_SECONDS = "merge_gap_seconds"
 OPT_IMPORT_RECORDER_HISTORY = "import_recorder_history"
+OPT_DURATION_UNIT = "duration_unit"
 
 DEFAULT_RETENTION_DAYS = 90
 DEFAULT_MINIMUM_SESSION_SECONDS = 0
 DEFAULT_UNAVAILABLE_BEHAVIOR = "unknown"
 DEFAULT_UNAVAILABLE_TOLERANCE_SECONDS = 0
 DEFAULT_MERGE_GAP_SECONDS = 0
+DEFAULT_DURATION_UNIT = "h"
+DURATION_UNITS = ("s", "min", "h")
 
 
 def update_signal(entry_id: str) -> str:

@@ -6,6 +6,11 @@ from datetime import datetime, timedelta
 from types import SimpleNamespace
 
 from custom_components.activity_tracker.const import (
+    CONF_ENABLED_METRICS,
+    CONF_MONITOR_TYPE,
+    CONF_PERIOD_METRICS,
+    CONF_PERIODS,
+    DOMAIN,
     METRIC_AVERAGE_DAILY_DURATION,
     METRIC_AVERAGE_SESSION_DURATION,
     METRIC_CURRENT_SESSION_DURATION,
@@ -21,6 +26,7 @@ from custom_components.activity_tracker.const import (
     METRIC_TOTAL_DURATION,
     METRIC_UNKNOWN_DURATION,
     METRIC_WEEKDAY_MAX,
+    OPT_DURATION_UNIT,
     OPT_RETENTION_DAYS,
 )
 from custom_components.activity_tracker.models import DailySummary, Session
@@ -29,6 +35,7 @@ from custom_components.activity_tracker.sensor import (
     CurrentApplicationSensor,
     _metric_icon,
     _metric_name,
+    async_setup_entry,
 )
 
 
@@ -56,6 +63,7 @@ def _runtime() -> SimpleNamespace:
         },
         daily_summaries={now.date().isoformat(): summary},
         signal="test",
+        period_availability=lambda _period: (True, {}),
         period_summaries=lambda _period: (
             [summary],
             now.replace(hour=0, minute=0),
@@ -94,8 +102,13 @@ def test_metric_sensors_cover_period_current_and_latest_values() -> None:
 
 def test_metric_availability_weekday_and_application_values() -> None:
     runtime = _runtime()
+    runtime.period_availability = lambda _period: (
+        False,
+        {"reason": "retention_limit"},
+    )
     rolling = ActivityMetricSensor(runtime, METRIC_TOTAL_DURATION, "rolling_days:91")
     assert rolling.available is False
+    assert rolling.extra_state_attributes["reason"] == "retention_limit"
     weekday = ActivityMetricSensor(runtime, METRIC_WEEKDAY_MAX)
     assert weekday.native_value == datetime.now().astimezone().strftime("%A").lower()
     current = CurrentApplicationSensor(runtime)
@@ -104,3 +117,67 @@ def test_metric_availability_weekday_and_application_values() -> None:
     assert current.native_value is None
     assert _metric_name(METRIC_TOTAL_DURATION, "rolling_days:35").endswith("Last 35")
     assert _metric_icon(METRIC_SESSION_COUNT) == "mdi:counter"
+
+
+def test_duration_sensors_convert_only_their_presentation_values() -> None:
+    runtime = _runtime()
+    runtime.entry.options[OPT_DURATION_UNIT] = "h"
+
+    total = ActivityMetricSensor(runtime, METRIC_TOTAL_DURATION, "current_day")
+    latest = ActivityMetricSensor(runtime, METRIC_LAST_SESSION_DURATION)
+
+    assert total.native_value == 600 / 3600
+    assert latest.native_value == 300 / 3600
+    assert total.native_unit_of_measurement == "h"
+    assert total.extra_state_attributes["formatted"] == "10min 0s"
+
+
+async def test_sensor_factory_creates_only_selected_metric_period_pairs() -> None:
+    runtime = _runtime()
+    entry = SimpleNamespace(
+        entry_id="one",
+        title="Test",
+        options={OPT_RETENTION_DAYS: 90},
+        data={
+            CONF_PERIOD_METRICS: {
+                "current_day": [METRIC_TOTAL_DURATION],
+                "rolling_days:30": [METRIC_AVERAGE_SESSION_DURATION],
+            },
+            CONF_ENABLED_METRICS: [METRIC_LAST_SESSION_DURATION],
+        },
+    )
+    runtime.entry = entry
+    hass = SimpleNamespace(data={DOMAIN: {entry.entry_id: runtime}})
+    entities: list[ActivityMetricSensor] = []
+
+    await async_setup_entry(hass, entry, entities.extend)
+
+    assert {(entity._metric, entity._period) for entity in entities} == {
+        (METRIC_TOTAL_DURATION, "current_day"),
+        (METRIC_AVERAGE_SESSION_DURATION, "rolling_days:30"),
+        (METRIC_LAST_SESSION_DURATION, None),
+    }
+
+
+async def test_sensor_factory_keeps_legacy_cartesian_pairs_until_migrated() -> None:
+    runtime = _runtime()
+    entry = SimpleNamespace(
+        entry_id="one",
+        title="Test",
+        options={OPT_RETENTION_DAYS: 90},
+        data={
+            CONF_PERIODS: ["current_day", "rolling_days:30"],
+            CONF_ENABLED_METRICS: [METRIC_TOTAL_DURATION],
+            CONF_MONITOR_TYPE: "entity_state",
+        },
+    )
+    runtime.entry = entry
+    hass = SimpleNamespace(data={DOMAIN: {entry.entry_id: runtime}})
+    entities: list[ActivityMetricSensor] = []
+
+    await async_setup_entry(hass, entry, entities.extend)
+
+    assert {(entity._metric, entity._period) for entity in entities} == {
+        (METRIC_TOTAL_DURATION, "current_day"),
+        (METRIC_TOTAL_DURATION, "rolling_days:30"),
+    }

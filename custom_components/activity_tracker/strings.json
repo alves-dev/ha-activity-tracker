@@ -44,6 +44,7 @@
         "title": "Choose session behavior",
         "description": "These choices apply only to this monitor. They determine which completed activity is retained and how short interruptions are handled.",
         "data": {
+          "duration_unit": "Duration display format",
           "retention_days": "Keep reports for (days)",
           "minimum_session_seconds": "Ignore sessions shorter than (seconds)",
           "unavailable_behavior": "If the source becomes unavailable",
@@ -52,6 +53,7 @@
           "import_recorder_history": "Import previous history from Recorder"
         },
         "data_description": {
+          "duration_unit": "Choose how duration sensors are shown. This affects only the display, not tracked time or history.",
           "retention_days": "Number of calendar days to keep compact daily summaries. The minimum is 7 days; older summaries are deleted during cleanup.",
           "minimum_session_seconds": "Completed sessions shorter than this many seconds are discarded. Use 0 to keep every completed session.",
           "unavailable_behavior": "Choose whether an unavailable or unknown source ends activity, remains pending briefly, or is reported as unknown time.",
@@ -72,14 +74,24 @@
           "rolling_days": "Optional positive whole-day values separated by commas, for example: 7, 30, 35. “35” means today plus the previous 34 local dates."
         }
       },
-      "metrics": {
+      "period_metrics": {
         "title": "Choose sensors to create",
-        "description": "Only selected metrics create entities. Choose the questions you actually need answered.",
+        "description": "Select the report sensors to create for {period}.",
         "data": {
-          "enabled_metrics": "Reports and sensors to create"
+          "period_metrics": "Reports and sensors to create for this period"
         },
         "data_description": {
-          "enabled_metrics": "Duration and session-count metrics are created for every selected period. Current and latest-session metrics create one entity each."
+          "period_metrics": "Each selected metric creates an entity only for this report period."
+        }
+      },
+      "metrics": {
+        "title": "Choose monitor-wide sensors",
+        "description": "Optionally select sensors that do not use a report period.",
+        "data": {
+          "enabled_metrics": "Monitor-wide sensors to create"
+        },
+        "data_description": {
+          "enabled_metrics": "Current, latest-session, and weekday sensors create one entity for this monitor."
         }
       },
       "review": {
@@ -113,8 +125,8 @@
       "behavior": {
         "title": "Choose session behavior",
         "description": "These choices apply to future observations for this monitor.",
-        "data": {"retention_days": "Keep reports for (days)", "minimum_session_seconds": "Ignore sessions shorter than (seconds)", "unavailable_behavior": "If the source becomes unavailable", "unavailable_tolerance_seconds": "Wait before handling an unavailable source (seconds)", "merge_gap_seconds": "Ignore inactive gaps shorter than (seconds)"},
-        "data_description": {"retention_days": "Number of calendar days to retain. A longer report period cannot be reliable if it exceeds this value.", "minimum_session_seconds": "Discard completed sessions shorter than this duration. Set to 0 to keep all completed sessions.", "unavailable_behavior": "How an unknown or unavailable source affects the in-progress session.", "unavailable_tolerance_seconds": "Wait this many seconds before applying the unavailable behavior.", "merge_gap_seconds": "Treat a brief observed inactive interval as part of one visit or use session. The gap is excluded from duration."}
+        "data": {"duration_unit": "Duration display format", "retention_days": "Keep reports for (days)", "minimum_session_seconds": "Ignore sessions shorter than (seconds)", "unavailable_behavior": "If the source becomes unavailable", "unavailable_tolerance_seconds": "Wait before handling an unavailable source (seconds)", "merge_gap_seconds": "Ignore inactive gaps shorter than (seconds)"},
+        "data_description": {"duration_unit": "Choose how duration sensors are shown. This affects only the display, not tracked time or history.", "retention_days": "Number of calendar days to retain. A longer report period cannot be reliable if it exceeds this value.", "minimum_session_seconds": "Discard completed sessions shorter than this duration. Set to 0 to keep all completed sessions.", "unavailable_behavior": "How an unknown or unavailable source affects the in-progress session.", "unavailable_tolerance_seconds": "Wait this many seconds before applying the unavailable behavior.", "merge_gap_seconds": "Treat a brief observed inactive interval as part of one visit or use session. The gap is excluded from duration."}
       },
       "periods": {
         "title": "Choose report periods",
@@ -122,18 +134,32 @@
         "data": {"periods": "Calendar periods to report", "rolling_days": "Extra rolling periods (days)"},
         "data_description": {"periods": "Today starts at local midnight. Current week and month follow Home Assistant's local calendar.", "rolling_days": "Optional positive whole-day values separated by commas, for example: 7, 30, 35."}
       },
-      "metrics": {
+      "period_metrics": {
         "title": "Choose sensors to create",
-        "description": "Only selected metrics create entities.",
-        "data": {"enabled_metrics": "Reports and sensors to create"},
-        "data_description": {"enabled_metrics": "Duration and session-count metrics are created for every selected period. Current and latest-session metrics create one entity each."}
+        "description": "Select the report sensors to create for {period}.",
+        "data": {"period_metrics": "Reports and sensors to create for this period"},
+        "data_description": {"period_metrics": "Each selected metric creates an entity only for this report period."}
+      },
+      "metrics": {
+        "title": "Choose monitor-wide sensors",
+        "description": "Optionally select sensors that do not use a report period.",
+        "data": {"enabled_metrics": "Monitor-wide sensors to create"},
+        "data_description": {"enabled_metrics": "Current, latest-session, and weekday sensors create one entity for this monitor."}
       },
       "history": {
         "title": "Choose what to do with history",
         "description": "Use reimport when the changed rule should be applied to the available Recorder history. It replaces summaries within the retention period.",
         "data": {"history_action": "Existing history"},
         "data_description": {"history_action": "Keep preserves current summaries; clear deletes them; reimport rebuilds them using the configured source and Recorder history."}
+      },
+      "confirm_history": {
+        "title": "Confirm history action",
+        "description": "Confirm {action} before changing retained history. Clear removes all retained summaries; reimport replaces only the Recorder-backed range.",
+        "data": {"confirm_history_action": "I understand this changes retained history"}
       }
+    },
+    "error": {
+      "confirmation_required": "Select the confirmation before continuing."
     }
   },
   "selector": {
@@ -183,6 +209,13 @@
         "end": "End the session — stop activity when the source is unavailable.",
         "pending": "Keep it pending — wait for the source to return before deciding.",
         "unknown": "Mark the time as unknown — preserve the interval as uncertain."
+      }
+    },
+    "duration_unit": {
+      "options": {
+        "s": "Seconds",
+        "min": "Minutes",
+        "h": "Hours"
       }
     },
     "history_action": {

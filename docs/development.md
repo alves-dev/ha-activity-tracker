@@ -14,4 +14,7 @@ The final command is provided by the shared Home Assistant integration standards
 repository. It validates release metadata, documentation, HACS configuration,
 branding files, and the GitHub Actions flow.
 
-For a local Home Assistant smoke test, copy `custom_components/activity_tracker` to the local HA configuration's `custom_components` directory, restart Home Assistant, add a monitor through the UI, and trigger source state changes from Developer Tools.
+For a local Home Assistant smoke test, run `sh dev/copy-to-core.sh` to stop the
+local instance, deploy `custom_components/activity_tracker`, and start it again.
+Then add a monitor through the UI and trigger source state changes from Developer
+Tools.

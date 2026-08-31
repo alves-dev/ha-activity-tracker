@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -17,16 +18,21 @@ from custom_components.activity_tracker.const import (
     CONF_VALUE_ATTRIBUTE,
     CONF_VALUE_SOURCE,
     CONF_ZONE_ENTITY_ID,
+    OPT_MERGE_GAP_SECONDS,
+    OPT_UNAVAILABLE_BEHAVIOR,
     TYPE_FOREGROUND_APPLICATION,
     TYPE_ZONE,
 )
 from custom_components.activity_tracker.models import Session
-from custom_components.activity_tracker.recorder_import import async_get_sessions
+from custom_components.activity_tracker.recorder_import import (
+    RecorderImport,
+    async_get_sessions,
+)
 from custom_components.activity_tracker.runtime import ActivityTrackerRuntime
 
 
 def _runtime(monitor_type: str = "entity_state") -> ActivityTrackerRuntime:
-    hass = SimpleNamespace(data={})
+    hass = SimpleNamespace(data={}, states=SimpleNamespace(get=lambda _: None))
     entry = SimpleNamespace(
         entry_id="monitor-1",
         title="Test monitor",
@@ -56,8 +62,16 @@ def test_classify_state_supports_entity_zone_and_foreground_sources() -> None:
     runtime.entry.data.update(
         {CONF_MONITOR_TYPE: TYPE_ZONE, CONF_ZONE_ENTITY_ID: "zone.gym"}
     )
-    assert runtime._classify_state(State("input_boolean.x", "zone.gym"))[0] is True
+    assert runtime._classify_state(State("input_boolean.x", "gym"))[0] is True
     assert runtime._classify_state(State("input_boolean.x", "home"))[0] is False
+
+    runtime.hass.states.get = lambda _: State(
+        "zone.gym", "0", {"friendly_name": "Gym"}
+    )
+    assert runtime._classify_state(State("input_boolean.x", "Gym"))[0] is True
+
+    runtime.entry.data[CONF_ZONE_ENTITY_ID] = "zone.home"
+    assert runtime._classify_state(State("input_boolean.x", "home"))[0] is True
 
     runtime.entry.data.update(
         {
@@ -129,15 +143,60 @@ async def test_short_sessions_are_discarded_and_old_data_is_cleaned() -> None:
     assert "2000-01-01" not in runtime._data["daily_summaries"]
 
 
+async def test_merge_gap_keeps_one_session_but_excludes_inactive_time() -> None:
+    runtime = _runtime()
+    runtime.entry.options[OPT_MERGE_GAP_SECONDS] = 30
+    runtime._notify = lambda: None
+    start = datetime.now().astimezone().replace(microsecond=0)
+
+    await runtime.async_process_state(State("input_boolean.x", "on"), start)
+    await runtime.async_process_state(
+        State("input_boolean.x", "off"), start + timedelta(seconds=10)
+    )
+    await runtime.async_process_state(
+        State("input_boolean.x", "on"), start + timedelta(seconds=20)
+    )
+    await runtime.async_process_state(
+        State("input_boolean.x", "off"), start + timedelta(seconds=40)
+    )
+    await runtime._async_minute_tick(start + timedelta(seconds=71))
+
+    assert runtime.session is None
+    assert runtime.last_completed["duration_seconds"] == 30
+    assert runtime.daily_summaries[start.date().isoformat()].total_seconds == 30
+
+
+async def test_unknown_unavailability_is_not_counted_as_activity() -> None:
+    runtime = _runtime()
+    runtime.entry.options[OPT_UNAVAILABLE_BEHAVIOR] = "unknown"
+    runtime._notify = lambda: None
+    start = datetime.now().astimezone().replace(microsecond=0)
+
+    await runtime.async_process_state(State("input_boolean.x", "on"), start)
+    await runtime.async_process_state(
+        State("input_boolean.x", STATE_UNAVAILABLE), start + timedelta(seconds=10)
+    )
+    await runtime.async_process_state(
+        State("input_boolean.x", "on"), start + timedelta(seconds=25)
+    )
+
+    summary = runtime.daily_summaries[start.date().isoformat()]
+    assert summary.total_seconds == 10
+    assert summary.unknown_seconds == 15
+    assert summary.complete is False
+
+
 async def test_recorder_import_rebuilds_daily_summaries() -> None:
     runtime = _runtime()
     now = datetime.now().astimezone().replace(microsecond=0)
     with patch(
-        "custom_components.activity_tracker.runtime.async_get_sessions",
+        "custom_components.activity_tracker.runtime.async_get_import",
         new=AsyncMock(
-            return_value=[
-                (now - timedelta(minutes=10), now - timedelta(minutes=5), None, None)
-            ]
+            return_value=RecorderImport(
+                [(now - timedelta(minutes=10), now - timedelta(minutes=5), None, None)],
+                now - timedelta(minutes=10),
+                now,
+            )
         ),
     ):
         await runtime.async_import_recorder_history()
@@ -145,7 +204,49 @@ async def test_recorder_import_rebuilds_daily_summaries() -> None:
     summary = runtime.daily_summaries[now.date().isoformat()]
     assert summary.total_seconds == 300
     assert runtime.last_completed["quality"] == "imported"
-    assert "last_recorder_import" in runtime._data
+    result = runtime._data["last_recorder_import"]
+    assert result["status"] == "completed"
+    assert result["processed_sessions"] == 1
+    assert result["range"]["start"] < result["range"]["end"]
+
+
+async def test_recorder_reimport_preserves_outer_dates_and_is_idempotent() -> None:
+    runtime = _runtime()
+    now = datetime.now().astimezone().replace(microsecond=0)
+    outer_date = (now.date() - timedelta(days=1)).isoformat()
+    runtime._data = {
+        "daily_summaries": {
+            outer_date: {"total_seconds": 42},
+            now.date().isoformat(): {"total_seconds": 999},
+        }
+    }
+    sessions = [
+        (now - timedelta(minutes=10), now - timedelta(minutes=5), None, None)
+    ]
+    with patch(
+        "custom_components.activity_tracker.runtime.async_get_import",
+        new=AsyncMock(
+            return_value=RecorderImport(sessions, now - timedelta(minutes=10), now)
+        ),
+    ):
+        await runtime.async_import_recorder_history()
+        await runtime.async_import_recorder_history()
+
+    assert runtime.daily_summaries[outer_date].total_seconds == 42
+    assert runtime.daily_summaries[now.date().isoformat()].total_seconds == 300
+    assert runtime._data["last_recorder_import"]["preserved_days"] == 1
+
+
+async def test_failed_recorder_query_does_not_replace_existing_history() -> None:
+    runtime = _runtime()
+    runtime._data = {"daily_summaries": {"2026-08-01": {"total_seconds": 42}}}
+    with patch(
+        "custom_components.activity_tracker.runtime.async_get_import",
+        new=AsyncMock(side_effect=RuntimeError("Recorder unavailable")),
+    ), suppress(RuntimeError):
+        await runtime.async_import_recorder_history()
+
+    assert runtime.daily_summaries["2026-08-01"].total_seconds == 42
 
 
 async def test_recorder_session_reconstruction_closes_and_splits_applications() -> None:
@@ -168,6 +269,48 @@ async def test_recorder_session_reconstruction_closes_and_splits_applications() 
 
     assert sessions == [(start, start + timedelta(minutes=2), None, None)]
     hass.async_add_executor_job.assert_awaited_once()
+
+
+async def test_recorder_reconstruction_uses_selected_application_attributes() -> None:
+    runtime = _runtime(TYPE_FOREGROUND_APPLICATION)
+    runtime.entry.data.update(
+        {
+            CONF_VALUE_SOURCE: "attribute",
+            CONF_VALUE_ATTRIBUTE: "package",
+            CONF_LABEL_ATTRIBUTE: "label",
+        }
+    )
+    start = datetime.now().astimezone().replace(microsecond=0)
+    states = [
+        State(
+            "sensor.activity",
+            "active",
+            {"package": "app.one", "label": "One"},
+            last_changed=start,
+        ),
+        State(
+            "sensor.activity",
+            "active",
+            {"package": "app.two", "label": "Two"},
+            last_changed=start + timedelta(minutes=2),
+        ),
+    ]
+    runtime.hass.async_add_executor_job = AsyncMock(
+        return_value={"input_boolean.activity": states}
+    )
+
+    sessions = await async_get_sessions(
+        runtime.hass,
+        "input_boolean.activity",
+        start,
+        start + timedelta(minutes=3),
+        runtime._classify_state,
+    )
+
+    assert sessions == [
+        (start, start + timedelta(minutes=2), "app.one", "One"),
+        (start + timedelta(minutes=2), start + timedelta(minutes=3), "app.two", "Two"),
+    ]
 
 
 def test_commit_session_splits_midnight_and_tracks_application() -> None:
@@ -199,3 +342,38 @@ def test_checkpoint_and_period_helpers_handle_valid_and_invalid_data() -> None:
     }
     summaries, _, _ = runtime.period_summaries("rolling_days:2")
     assert sum(summary.total_seconds for summary in summaries) == 11
+
+
+def test_rolling_availability_requires_complete_history() -> None:
+    runtime = _runtime()
+    runtime.entry.options["retention_days"] = 90
+    runtime._data = {
+        "daily_summaries": {
+            "2026-08-25": {"complete": True},
+            "2026-08-26": {"complete": False},
+        }
+    }
+
+    available, attributes = runtime.period_availability("rolling_days:3")
+
+    assert available is False
+    assert attributes == {
+        "required_days": 3,
+        "available_days": 1,
+        "available_from": "2026-08-25",
+        "reason": "insufficient_complete_history",
+        "suggested_action": "wait_for_complete_history",
+    }
+
+
+def test_storage_unavailability_includes_a_safe_suggested_action() -> None:
+    runtime = _runtime()
+    runtime._storage_error = "storage_migration_failed"
+
+    available, attributes = runtime.period_availability("current_day")
+
+    assert available is False
+    assert attributes == {
+        "reason": "storage_migration_failed",
+        "suggested_action": "restore_or_reconfigure_monitor",
+    }
