@@ -10,7 +10,7 @@ import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_HOME, STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.const import STATE_HOME, STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import Event, HomeAssistant, State, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import (
@@ -698,6 +698,8 @@ class ActivityTrackerRuntime:
                 identifier,
                 str(label) if label not in (None, "") else identifier,
             )
+        if monitor_type == TYPE_PHONE_IN_USE:
+            return state.state == STATE_ON, None, None
         active_states = self.entry.data.get(CONF_ACTIVE_STATES, [])
         return state.state in active_states, None, None
 

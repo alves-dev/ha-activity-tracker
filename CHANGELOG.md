@@ -12,6 +12,8 @@ All user-relevant changes are documented in this file.
 
 ### Fixed
 
+- Mobile-device monitors now correctly start a session when the selected
+  Companion App Interactive entity reports `on`.
 - Mobile screen-use sessions now stop or follow the configured unavailable-source
   behavior after the phone stops communicating, preventing a drained battery or
   lost connection from leaving an old interactive state active indefinitely.

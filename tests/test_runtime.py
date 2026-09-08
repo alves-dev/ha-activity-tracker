@@ -92,6 +92,17 @@ def test_classify_state_supports_entity_zone_and_foreground_sources() -> None:
         None,
     )
 
+    runtime.entry.data = {
+        CONF_MONITOR_TYPE: TYPE_PHONE_IN_USE,
+        CONF_ENTITY_ID: "binary_sensor.phone_interactive",
+    }
+    assert runtime._classify_state(
+        State("binary_sensor.phone_interactive", "on")
+    ) == (True, None, None)
+    assert runtime._classify_state(
+        State("binary_sensor.phone_interactive", "off")
+    ) == (False, None, None)
+
 
 async def test_process_state_starts_and_finishes_a_session() -> None:
     runtime = _runtime()

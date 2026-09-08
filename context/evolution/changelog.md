@@ -13,6 +13,8 @@
 - A validação agora usa os IDs de entidade visíveis do dispositivo e informa no
   formulário os IDs esperados quando as entidades obrigatórias não forem
   encontradas.
+- Corrigida a classificação da entidade `Interactive`: o estado `on` agora inicia
+  corretamente uma sessão, sem exigir uma lista genérica de estados ativos.
 
 ## 2026-08-31 — Correção dos assets de marca
 

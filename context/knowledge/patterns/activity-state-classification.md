@@ -23,6 +23,8 @@ def _classify_state(self, state: State) -> tuple[bool, str | None, str | None]:
     if self.entry.data.get(CONF_MONITOR_TYPE) == TYPE_FOREGROUND_APPLICATION:
         identifier = str(state.state)
         return True, identifier, identifier
+    if self.entry.data.get(CONF_MONITOR_TYPE) == TYPE_PHONE_IN_USE:
+        return state.state == STATE_ON, None, None
     return state.state in self.entry.data.get(CONF_ACTIVE_STATES, []), None, None
 ```
 
