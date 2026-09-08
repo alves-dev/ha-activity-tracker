@@ -2,6 +2,20 @@
 
 All user-relevant changes are documented in this file.
 
+## [2026.9.0] - 2026-09-08
+
+### Added
+
+- Added the **Mobile device in use** monitor for Android devices using the Home
+  Assistant Companion App. Setup selects one device and automatically validates
+  its required Interactive and Last update trigger entities.
+
+### Fixed
+
+- Mobile screen-use sessions now stop or follow the configured unavailable-source
+  behavior after the phone stops communicating, preventing a drained battery or
+  lost connection from leaving an old interactive state active indefinitely.
+
 ## [2026.8.1] - 2026-08-27
 
 ### Changed

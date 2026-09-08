@@ -14,7 +14,8 @@ Classify options edits before offering a history action.
 
 - A **rule-changing edit** changes the source entity or monitor type, active
   states, selected zone/presence source, foreground-application identifier
-  source or attribute, minimum session duration, merge gap, unavailable behavior,
+  source or attribute, selected mobile device or its resolved heartbeat, mobile
+  silence tolerance, minimum session duration, merge gap, unavailable behavior,
   or unavailable tolerance. It shows keep, clear, and reimport choices.
 - A **presentation-only edit** changes the monitor name, report periods, enabled
   metrics, retention, or foreground-application display-label attribute. It
@@ -65,6 +66,7 @@ entities provide a stable suggested action with their reason.
 - [Feature: Durable Activity History](../intent/feature-durable-activity-history.md)
 - [Decision: Data Quality and Period Completeness](007-data-quality-and-period-completeness.md)
 - [Decision: Storage Migration and Import Safety](008-storage-migration-and-import-safety.md)
+- [Decision: Mobile Device Interaction Heartbeat](013-mobile-device-interaction-heartbeat.md)
 - [Pattern: Multi-Step Configuration Flow](../knowledge/patterns/multi-step-configuration-flow.md)
 
 ## Status

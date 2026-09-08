@@ -6,16 +6,18 @@
 
 [![Quality Gate](https://sonar.alves-dev.com/api/project_badges/measure?project=ha-activity-tracker&metric=alert_status)](https://sonar.alves-dev.com/dashboard?id=ha-activity-tracker)
 [![Coverage](https://sonar.alves-dev.com/api/project_badges/measure?project=ha-activity-tracker&metric=coverage)](https://sonar.alves-dev.com/dashboard?id=ha-activity-tracker)
-![Version](https://img.shields.io/badge/Version-2026.8.1-41BDF5?style=flat-square)
+![Version](https://img.shields.io/badge/Version-2026.9.0-41BDF5?style=flat-square)
 ![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.8%2B-41BDF5?logo=homeassistant)
 
-Track how long an entity, person, zone, area-presence sensor, or foreground application is active in Home Assistant.
+Track how long an entity, person, zone, area-presence sensor, mobile device, or
+foreground application is active in Home Assistant.
 
 Activity Tracker observes state changes live and stores compact daily summaries, so reports continue to work beyond Recorder retention. Each configured monitor is a separate Home Assistant device with only the entities selected during setup.
 
 ## Features
 
-- Entity/generic active-state, zone, area-presence, and foreground-application monitors.
+- Entity/generic active-state, zone, area-presence, mobile-device, and
+  foreground-application monitors.
 - Daily, current-week, current-month, and custom rolling calendar-day durations.
 - Session counts, duration statistics, current activity, and latest completed-session details.
 - Session splitting at local midnight, configurable minimum session duration, per-monitor retention, and foreground-app aggregation.
@@ -42,6 +44,7 @@ Add **Activity Tracker** from *Settings → Devices & services → Add integrati
 | Estados ativos de entidade        | Uma entidade já expõe estados significativos.                    | O estado é um dos valores informados, separados por vírgula.                                | [Tempo de TV ligada](docs/use-case-entity-active-states.md)              |
 | Pessoa ou dispositivo em uma zona | Um `person` ou `device_tracker` informa o nome da zona desejada. | O estado corresponde exatamente à zona selecionada.                                         | [Visitas à academia](docs/use-case-zone.md)                              |
 | Pessoa em uma área interna        | Um sensor binário identifica se uma pessoa está em uma área.     | O sensor binário de presença escolhido está em `on`; pessoa e área dão contexto ao monitor. | [Tempo no escritório](docs/use-case-area-presence.md)                    |
+| Celular em uso                    | Um celular Android usa o aplicativo Home Assistant Companion.    | A tela está interativa e o celular continua enviando atualizações.                           | [Tempo de tela do celular](docs/use-case-phone-in-use.md)                |
 | Aplicativo em primeiro plano      | Uma entidade informa o aplicativo que está sendo usado.          | Há um valor não vazio no estado ou atributo; trocar de aplicativo inicia outra sessão.      | [Uso de aplicativos no celular](docs/use-case-foreground-application.md) |
 | Regra de estado personalizada     | Você precisa de um monitor neutro baseado em estados.            | O estado é um dos valores ativos informados.                                                | [Ciclos da lavadora](docs/use-case-custom-state-rule.md)                 |
 
@@ -52,6 +55,7 @@ Add **Activity Tracker** from *Settings → Devices & services → Add integrati
 | Entity active states       | An entity already exposes meaningful states.                  | Its state matches one of the comma-separated values you provide.                            | [TV-on time](docs/use-case-entity-active-states.md)          |
 | Person or device in a zone | A `person` or `device_tracker` reports the desired zone name. | Its state exactly matches the selected zone.                                                | [Gym visits](docs/use-case-zone.md)                          |
 | Person in an internal area | A binary sensor detects whether one person is in an area.     | The selected presence binary sensor is `on`; the person and area provide monitor context.   | [Time in the office](docs/use-case-area-presence.md)         |
+| Mobile device in use     | An Android phone uses the Home Assistant Companion App.       | Its screen is interactive and the phone continues reporting updates.                        | [Phone screen time](docs/use-case-phone-in-use.md)            |
 | Foreground application     | An entity reports the application currently in use.           | A non-empty state or attribute value is present; changing application starts a new session. | [Mobile app usage](docs/use-case-foreground-application.md)  |
 | Custom state rule          | You need a neutral state-based monitor.                       | Its state matches one of the active values you provide.                                     | [Washing-machine cycles](docs/use-case-custom-state-rule.md) |
 

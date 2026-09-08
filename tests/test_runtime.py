@@ -19,8 +19,10 @@ from custom_components.activity_tracker.const import (
     CONF_VALUE_SOURCE,
     CONF_ZONE_ENTITY_ID,
     OPT_MERGE_GAP_SECONDS,
+    OPT_PHONE_SILENCE_TOLERANCE_SECONDS,
     OPT_UNAVAILABLE_BEHAVIOR,
     TYPE_FOREGROUND_APPLICATION,
+    TYPE_PHONE_IN_USE,
     TYPE_ZONE,
 )
 from custom_components.activity_tracker.models import Session
@@ -184,6 +186,40 @@ async def test_unknown_unavailability_is_not_counted_as_activity() -> None:
     assert summary.total_seconds == 10
     assert summary.unknown_seconds == 15
     assert summary.complete is False
+
+
+async def test_phone_silence_ends_an_interactive_session_at_the_deadline() -> None:
+    runtime = _runtime(TYPE_PHONE_IN_USE)
+    runtime.entry.data["heartbeat_entity_id"] = "sensor.phone_last_update_trigger"
+    runtime.entry.options[OPT_PHONE_SILENCE_TOLERANCE_SECONDS] = 60
+    runtime.entry.options[OPT_UNAVAILABLE_BEHAVIOR] = "end"
+    runtime._notify = lambda: None
+    start = datetime.now().astimezone().replace(microsecond=0)
+
+    await runtime.async_process_state(
+        State("binary_sensor.phone_interactive", "on"), start
+    )
+    await runtime._async_expire_freshness(start + timedelta(seconds=60))
+
+    assert runtime.session is None
+    assert runtime.last_completed["duration_seconds"] == 60
+
+
+async def test_phone_heartbeat_does_not_resume_a_stale_interactive_state() -> None:
+    runtime = _runtime(TYPE_PHONE_IN_USE)
+    runtime.entry.data["heartbeat_entity_id"] = "sensor.phone_last_update_trigger"
+    runtime.entry.options[OPT_PHONE_SILENCE_TOLERANCE_SECONDS] = 60
+    runtime.entry.options[OPT_UNAVAILABLE_BEHAVIOR] = "end"
+    runtime._notify = lambda: None
+    start = datetime.now().astimezone().replace(microsecond=0)
+
+    await runtime.async_process_state(
+        State("binary_sensor.phone_interactive", "on"), start
+    )
+    await runtime._async_expire_freshness(start + timedelta(seconds=60))
+    await runtime.async_process_heartbeat(start + timedelta(seconds=61))
+
+    assert runtime.session is None
 
 
 async def test_recorder_import_rebuilds_daily_summaries() -> None:

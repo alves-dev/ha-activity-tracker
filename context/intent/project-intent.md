@@ -2,7 +2,7 @@
 
 ## What
 
-Activity Tracker lets Home Assistant users measure how long a chosen activity is active and how often it occurs. A user creates independent monitors for entities, locations, presence, or the foreground application on a device, then views the measurements they choose.
+Activity Tracker lets Home Assistant users measure how long a chosen activity is active and how often it occurs. A user creates independent monitors for entities, locations, presence, a mobile device in use, or the foreground application on a device, then views the measurements they choose.
 
 ## Why
 
@@ -10,7 +10,7 @@ It gives users durable, understandable activity reports without relying solely o
 
 ## Current State
 
-The custom integration is active at version 2026.8.1 and supports UI-only monitor setup, persistent activity summaries, configurable report periods and metrics, monitor options, foreground application reporting, and optional historical reconstruction.
+The custom integration is active at version 2026.9.0 and supports UI-only monitor setup, persistent activity summaries, configurable report periods and metrics, monitor options, mobile-device screen-use reporting, foreground application reporting, and optional historical reconstruction where the source can be reconstructed safely.
 
 The integration is localized in English and Brazilian Portuguese. It is distributed as a HACS custom integration and requires Home Assistant 2026.8 or newer.
 

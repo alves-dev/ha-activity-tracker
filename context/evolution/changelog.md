@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-09-08 — Monitor de celular em uso
+
+- Adicionado o tipo de monitor **Celular em uso**, configurado pela seleção de
+  um único dispositivo Android do Home Assistant Companion App.
+- O monitor encontra e valida automaticamente as entidades `Interactive` e
+  `Last update trigger`, encerrando ou tratando a sessão como indisponível quando
+  o celular deixa de se comunicar pelo limite configurado (30 minutos por
+  padrão).
+- Relatórios de heartbeat sem mudança de estado agora são reconhecidos; um
+  heartbeat isolado nunca reabre uma sessão de tela antiga.
+
 ## 2026-08-31 — Correção dos assets de marca
 
 - Corrigido o conjunto de ícones e logos da integração com variantes claras e

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant import config_entries
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import selector
 import voluptuous as vol
 
@@ -16,8 +17,10 @@ from .configuration import (
 from .const import (
     CONF_ACTIVE_STATES,
     CONF_AREA_ID,
+    CONF_DEVICE_ID,
     CONF_ENABLED_METRICS,
     CONF_ENTITY_ID,
+    CONF_HEARTBEAT_ENTITY_ID,
     CONF_LABEL_ATTRIBUTE,
     CONF_MONITOR_TYPE,
     CONF_NAME,
@@ -31,6 +34,7 @@ from .const import (
     DEFAULT_DURATION_UNIT,
     DEFAULT_MERGE_GAP_SECONDS,
     DEFAULT_MINIMUM_SESSION_SECONDS,
+    DEFAULT_PHONE_SILENCE_TOLERANCE_SECONDS,
     DEFAULT_RETENTION_DAYS,
     DEFAULT_UNAVAILABLE_BEHAVIOR,
     DEFAULT_UNAVAILABLE_TOLERANCE_SECONDS,
@@ -43,6 +47,7 @@ from .const import (
     OPT_IMPORT_RECORDER_HISTORY,
     OPT_MERGE_GAP_SECONDS,
     OPT_MINIMUM_SESSION_SECONDS,
+    OPT_PHONE_SILENCE_TOLERANCE_SECONDS,
     OPT_RETENTION_DAYS,
     OPT_UNAVAILABLE_BEHAVIOR,
     OPT_UNAVAILABLE_TOLERANCE_SECONDS,
@@ -50,6 +55,7 @@ from .const import (
     PERIODS,
     TYPE_AREA_PRESENCE,
     TYPE_FOREGROUND_APPLICATION,
+    TYPE_PHONE_IN_USE,
     TYPE_ZONE,
 )
 
@@ -96,7 +102,8 @@ class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             active_states = _split_states(user_input.get(CONF_ACTIVE_STATES, ""))
             if (
-                monitor_type not in (TYPE_ZONE, TYPE_FOREGROUND_APPLICATION)
+                monitor_type
+                not in (TYPE_PHONE_IN_USE, TYPE_ZONE, TYPE_FOREGROUND_APPLICATION)
                 and not active_states
             ):
                 errors[CONF_ACTIVE_STATES] = "required"
@@ -106,6 +113,17 @@ class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 and not str(user_input.get(CONF_VALUE_ATTRIBUTE, "")).strip()
             ):
                 errors[CONF_VALUE_ATTRIBUTE] = "required"
+            elif monitor_type == TYPE_PHONE_IN_USE:
+                phone_entities = _mobile_app_phone_entities(
+                    self.hass, user_input[CONF_DEVICE_ID]
+                )
+                if phone_entities is None:
+                    errors[CONF_DEVICE_ID] = "mobile_app_phone_entities_missing"
+                else:
+                    self._monitor.update(user_input)
+                    self._monitor.update(phone_entities)
+                    self._monitor[CONF_NAME] = user_input[CONF_NAME].strip()
+                    return await self.async_step_behavior()
             else:
                 self._monitor.update(user_input)
                 if active_states:
@@ -127,7 +145,12 @@ class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return await self.async_step_periods()
         return self.async_show_form(
             step_id="behavior",
-            data_schema=_behavior_schema(include_recorder_import=True),
+            data_schema=_behavior_schema(
+                include_recorder_import=(
+                    self._monitor[CONF_MONITOR_TYPE] != TYPE_PHONE_IN_USE
+                ),
+                phone_in_use=self._monitor[CONF_MONITOR_TYPE] == TYPE_PHONE_IN_USE,
+            ),
         )
 
     async def async_step_periods(self, user_input: dict[str, Any] | None = None):
@@ -300,7 +323,8 @@ class ActivityTrackerOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             active_states = _split_states(user_input.get(CONF_ACTIVE_STATES, ""))
             if (
-                monitor_type not in (TYPE_ZONE, TYPE_FOREGROUND_APPLICATION)
+                monitor_type
+                not in (TYPE_PHONE_IN_USE, TYPE_ZONE, TYPE_FOREGROUND_APPLICATION)
                 and not active_states
             ):
                 errors[CONF_ACTIVE_STATES] = "required"
@@ -310,6 +334,17 @@ class ActivityTrackerOptionsFlow(config_entries.OptionsFlow):
                 and not str(user_input.get(CONF_VALUE_ATTRIBUTE, "")).strip()
             ):
                 errors[CONF_VALUE_ATTRIBUTE] = "required"
+            elif monitor_type == TYPE_PHONE_IN_USE:
+                phone_entities = _mobile_app_phone_entities(
+                    self.hass, user_input[CONF_DEVICE_ID]
+                )
+                if phone_entities is None:
+                    errors[CONF_DEVICE_ID] = "mobile_app_phone_entities_missing"
+                else:
+                    self._monitor.update(user_input)
+                    self._monitor.update(phone_entities)
+                    self._monitor[CONF_NAME] = user_input[CONF_NAME].strip()
+                    return await self.async_step_behavior()
             else:
                 self._monitor.update(user_input)
                 if active_states:
@@ -331,7 +366,11 @@ class ActivityTrackerOptionsFlow(config_entries.OptionsFlow):
             self._options.pop(OPT_IMPORT_RECORDER_HISTORY, None)
             return await self.async_step_periods()
         return self.async_show_form(
-            step_id="behavior", data_schema=_behavior_schema(self._options)
+            step_id="behavior",
+            data_schema=_behavior_schema(
+                self._options,
+                phone_in_use=self._monitor[CONF_MONITOR_TYPE] == TYPE_PHONE_IN_USE,
+            ),
         )
 
     async def async_step_periods(self, user_input: dict[str, Any] | None = None):
@@ -472,7 +511,12 @@ class ActivityTrackerOptionsFlow(config_entries.OptionsFlow):
                         "history_action", default="keep"
                     ): selector.SelectSelector(
                         selector.SelectSelectorConfig(
-                            options=["keep", "clear", "reimport"],
+                            options=(
+                                ["keep", "clear"]
+                                if self._monitor[CONF_MONITOR_TYPE]
+                                == TYPE_PHONE_IN_USE
+                                else ["keep", "clear", "reimport"]
+                            ),
                             mode=selector.SelectSelectorMode.LIST,
                             translation_key="history_action",
                         )
@@ -525,7 +569,9 @@ def _is_rule_changing(
     """Return whether an edit changes the meaning of retained activity."""
     rule_data_keys = (
         CONF_MONITOR_TYPE,
+        CONF_DEVICE_ID,
         CONF_ENTITY_ID,
+        CONF_HEARTBEAT_ENTITY_ID,
         CONF_ACTIVE_STATES,
         CONF_ZONE_ENTITY_ID,
         CONF_PRESENCE_ENTITY_ID,
@@ -534,6 +580,7 @@ def _is_rule_changing(
     )
     rule_option_keys = (
         OPT_MINIMUM_SESSION_SECONDS,
+        OPT_PHONE_SILENCE_TOLERANCE_SECONDS,
         OPT_MERGE_GAP_SECONDS,
         OPT_UNAVAILABLE_BEHAVIOR,
         OPT_UNAVAILABLE_TOLERANCE_SECONDS,
@@ -633,6 +680,15 @@ def _source_schema(
                 ),
             )
         )
+    elif monitor_type == TYPE_PHONE_IN_USE:
+        fields.append(
+            required(
+                CONF_DEVICE_ID,
+                selector.DeviceSelector(
+                    selector.DeviceSelectorConfig(filter={"integration": "mobile_app"})
+                ),
+            )
+        )
     else:
         fields.extend(
             (
@@ -644,7 +700,10 @@ def _source_schema(
 
 
 def _behavior_schema(
-    defaults: dict[str, Any] | None = None, *, include_recorder_import: bool = False
+    defaults: dict[str, Any] | None = None,
+    *,
+    include_recorder_import: bool = False,
+    phone_in_use: bool = False,
 ) -> vol.Schema:
     defaults = defaults or {}
     fields: dict[Any, Any] = {
@@ -671,7 +730,8 @@ def _behavior_schema(
         vol.Required(
             OPT_UNAVAILABLE_BEHAVIOR,
             default=defaults.get(
-                OPT_UNAVAILABLE_BEHAVIOR, DEFAULT_UNAVAILABLE_BEHAVIOR
+                OPT_UNAVAILABLE_BEHAVIOR,
+                "end" if phone_in_use else DEFAULT_UNAVAILABLE_BEHAVIOR,
             ),
         ): selector.SelectSelector(
             selector.SelectSelectorConfig(
@@ -692,6 +752,16 @@ def _behavior_schema(
             default=defaults.get(OPT_MERGE_GAP_SECONDS, DEFAULT_MERGE_GAP_SECONDS),
         ): vol.All(vol.Coerce(int), vol.Range(min=0)),
     }
+    if phone_in_use:
+        fields[
+            vol.Required(
+                OPT_PHONE_SILENCE_TOLERANCE_SECONDS,
+                default=defaults.get(
+                    OPT_PHONE_SILENCE_TOLERANCE_SECONDS,
+                    DEFAULT_PHONE_SILENCE_TOLERANCE_SECONDS,
+                ),
+            )
+        ] = vol.All(vol.Coerce(int), vol.Range(min=60))
     if include_recorder_import:
         fields[
             vol.Optional(
@@ -700,6 +770,44 @@ def _behavior_schema(
             )
         ] = selector.BooleanSelector()
     return vol.Schema(fields)
+
+
+def _mobile_app_phone_entities(
+    hass, device_id: str
+) -> dict[str, str] | None:
+    """Resolve the enabled mobile-app interaction and heartbeat entities."""
+    entries = er.async_entries_for_device(
+        er.async_get(hass), device_id, include_disabled_entities=True
+    )
+    interactive = next(
+        (
+            entry.entity_id
+            for entry in entries
+            if (
+                entry.platform == "mobile_app"
+                and entry.domain == "binary_sensor"
+                and not entry.disabled_by
+                and entry.unique_id.endswith("_interactive")
+            )
+        ),
+        None,
+    )
+    heartbeat = next(
+        (
+            entry.entity_id
+            for entry in entries
+            if (
+                entry.platform == "mobile_app"
+                and entry.domain == "sensor"
+                and not entry.disabled_by
+                and entry.unique_id.endswith("_last_update_trigger")
+            )
+        ),
+        None,
+    )
+    if interactive is None or heartbeat is None:
+        return None
+    return {CONF_ENTITY_ID: interactive, CONF_HEARTBEAT_ENTITY_ID: heartbeat}
 
 
 def _split_states(value: object) -> list[str]:
@@ -750,6 +858,10 @@ def _source_guidance(monitor_type: str) -> str:
         TYPE_FOREGROUND_APPLICATION: (
             "Every non-empty application value is activity. A different application "
             "value starts a new application session."
+        ),
+        TYPE_PHONE_IN_USE: (
+            "Choose a Home Assistant Companion App device. Its Interactive and "
+            "Last update trigger entities must be enabled."
         ),
     }
     return guidance.get(

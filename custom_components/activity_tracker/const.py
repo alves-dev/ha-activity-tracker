@@ -6,11 +6,13 @@ from homeassistant.const import Platform
 
 DOMAIN = "activity_tracker"
 INTEGRATION_NAME = "Activity Tracker"
-INTEGRATION_VERSION = "2026.8.1"
+INTEGRATION_VERSION = "2026.9.0"
 PLATFORMS = (Platform.BINARY_SENSOR, Platform.SENSOR)
 
 CONF_MONITOR_TYPE = "monitor_type"
 CONF_ENTITY_ID = "entity_id"
+CONF_DEVICE_ID = "device_id"
+CONF_HEARTBEAT_ENTITY_ID = "heartbeat_entity_id"
 CONF_ACTIVE_STATES = "active_states"
 CONF_ZONE_ENTITY_ID = "zone_entity_id"
 CONF_PERSON_ENTITY_ID = "person_entity_id"
@@ -28,12 +30,14 @@ TYPE_ENTITY_STATE = "entity_state"
 TYPE_ZONE = "zone"
 TYPE_AREA_PRESENCE = "area_presence"
 TYPE_FOREGROUND_APPLICATION = "foreground_application"
+TYPE_PHONE_IN_USE = "phone_in_use"
 TYPE_GENERIC = "generic"
 MONITOR_TYPES = (
     TYPE_ENTITY_STATE,
     TYPE_ZONE,
     TYPE_AREA_PRESENCE,
     TYPE_FOREGROUND_APPLICATION,
+    TYPE_PHONE_IN_USE,
     TYPE_GENERIC,
 )
 
@@ -95,6 +99,7 @@ OPT_UNAVAILABLE_TOLERANCE_SECONDS = "unavailable_tolerance_seconds"
 OPT_MERGE_GAP_SECONDS = "merge_gap_seconds"
 OPT_IMPORT_RECORDER_HISTORY = "import_recorder_history"
 OPT_DURATION_UNIT = "duration_unit"
+OPT_PHONE_SILENCE_TOLERANCE_SECONDS = "phone_silence_tolerance_seconds"
 
 DEFAULT_RETENTION_DAYS = 90
 DEFAULT_MINIMUM_SESSION_SECONDS = 0
@@ -102,6 +107,7 @@ DEFAULT_UNAVAILABLE_BEHAVIOR = "unknown"
 DEFAULT_UNAVAILABLE_TOLERANCE_SECONDS = 0
 DEFAULT_MERGE_GAP_SECONDS = 0
 DEFAULT_DURATION_UNIT = "h"
+DEFAULT_PHONE_SILENCE_TOLERANCE_SECONDS = 1800
 DURATION_UNITS = ("s", "min", "h")
 
 

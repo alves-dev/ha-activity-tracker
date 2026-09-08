@@ -16,12 +16,14 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import (
     async_track_point_in_time,
     async_track_state_change_event,
+    async_track_state_report_event,
     async_track_time_interval,
 )
 
 from .const import (
     CONF_ACTIVE_STATES,
     CONF_ENTITY_ID,
+    CONF_HEARTBEAT_ENTITY_ID,
     CONF_LABEL_ATTRIBUTE,
     CONF_MONITOR_TYPE,
     CONF_PRESENCE_ENTITY_ID,
@@ -30,15 +32,18 @@ from .const import (
     CONF_ZONE_ENTITY_ID,
     DEFAULT_MERGE_GAP_SECONDS,
     DEFAULT_MINIMUM_SESSION_SECONDS,
+    DEFAULT_PHONE_SILENCE_TOLERANCE_SECONDS,
     DEFAULT_UNAVAILABLE_BEHAVIOR,
     DEFAULT_UNAVAILABLE_TOLERANCE_SECONDS,
     OPT_IMPORT_RECORDER_HISTORY,
     OPT_MERGE_GAP_SECONDS,
     OPT_MINIMUM_SESSION_SECONDS,
+    OPT_PHONE_SILENCE_TOLERANCE_SECONDS,
     OPT_UNAVAILABLE_BEHAVIOR,
     OPT_UNAVAILABLE_TOLERANCE_SECONDS,
     TYPE_AREA_PRESENCE,
     TYPE_FOREGROUND_APPLICATION,
+    TYPE_PHONE_IN_USE,
     TYPE_ZONE,
     update_signal,
 )
@@ -68,9 +73,11 @@ class ActivityTrackerRuntime:
         self._session: Session | None = None
         self._unsubscribers: list[callback] = []
         self._deadline_unsubscribe: callback | None = None
+        self._freshness_deadline_unsubscribe: callback | None = None
         self._is_setup = False
         self._last_completed: dict[str, Any] | None = None
         self._unknown_started_at: datetime | None = None
+        self._last_heartbeat_at: datetime | None = None
         self._mutation_lock = asyncio.Lock()
         self._storage_error: str | None = None
         self._last_cleanup_date = None
@@ -116,6 +123,12 @@ class ActivityTrackerRuntime:
                 self._unknown_started_at = datetime.fromisoformat(raw_unknown_started)
             except ValueError:
                 self._unknown_started_at = None
+        raw_heartbeat = self._data.get("last_heartbeat_at")
+        if isinstance(raw_heartbeat, str):
+            try:
+                self._last_heartbeat_at = datetime.fromisoformat(raw_heartbeat)
+            except ValueError:
+                self._last_heartbeat_at = None
         checkpoint = self._data.get("checkpoint")
         if isinstance(checkpoint, dict):
             self._session = self._session_from_checkpoint(checkpoint)
@@ -126,21 +139,44 @@ class ActivityTrackerRuntime:
                     self.hass, [entity_id], self._async_source_event
                 )
             )
+        heartbeat_entity_id = self._heartbeat_entity_id
+        if heartbeat_entity_id:
+            self._unsubscribers.append(
+                async_track_state_change_event(
+                    self.hass, [heartbeat_entity_id], self._async_heartbeat_event
+                )
+            )
+            self._unsubscribers.append(
+                async_track_state_report_event(
+                    self.hass, [heartbeat_entity_id], self._async_heartbeat_event
+                )
+            )
         self._unsubscribers.append(
             async_track_time_interval(
                 self.hass, self._async_minute_tick, timedelta(minutes=1)
             )
         )
         now = datetime.now().astimezone()
+        heartbeat_state = (
+            self.hass.states.get(heartbeat_entity_id) if heartbeat_entity_id else None
+        )
+        if self._last_heartbeat_at is None and heartbeat_state is not None:
+            self._last_heartbeat_at = getattr(
+                heartbeat_state, "last_reported", heartbeat_state.last_updated
+            )
         state = self.hass.states.get(entity_id) if entity_id else None
         # A prior process could not observe the outage: close at its last observation.
         if self._session is not None:
             await self._async_restore_checkpoint(now)
         if state is not None:
-            await self.async_process_state(state, now)
+            await self.async_process_state(state, now, source_reported=False)
         self._is_setup = True
         self._schedule_interruption_deadline()
-        if self.entry.options.get(OPT_IMPORT_RECORDER_HISTORY):
+        self._schedule_freshness_deadline()
+        if (
+            self.entry.data.get(CONF_MONITOR_TYPE) != TYPE_PHONE_IN_USE
+            and self.entry.options.get(OPT_IMPORT_RECORDER_HISTORY)
+        ):
             self.async_schedule_recorder_import()
 
     async def async_unload(self) -> None:
@@ -154,6 +190,7 @@ class ActivityTrackerRuntime:
                 self._session.last_observed_at = datetime.now().astimezone()
             await self._async_save()
         self._cancel_interruption_deadline()
+        self._cancel_freshness_deadline()
         for unsub in self._unsubscribers:
             unsub()
         self._unsubscribers.clear()
@@ -313,10 +350,22 @@ class ActivityTrackerRuntime:
             return self.entry.data.get(CONF_PRESENCE_ENTITY_ID)
         return self.entry.data.get(CONF_ENTITY_ID)
 
+    @property
+    def _heartbeat_entity_id(self) -> str | None:
+        """Return the Companion App heartbeat for a mobile-device monitor."""
+        if self.entry.data.get(CONF_MONITOR_TYPE) != TYPE_PHONE_IN_USE:
+            return None
+        heartbeat = self.entry.data.get(CONF_HEARTBEAT_ENTITY_ID)
+        return heartbeat if isinstance(heartbeat, str) else None
+
     async def _async_source_event(self, event: Event) -> None:
         state = event.data.get("new_state")
         if isinstance(state, State):
             await self.async_process_state(state, datetime.now().astimezone())
+
+    async def _async_heartbeat_event(self, event: Event) -> None:
+        """Record a Companion App report, including an unchanged state report."""
+        await self.async_process_heartbeat(datetime.now().astimezone())
 
     async def _async_minute_tick(self, now: datetime) -> None:
         async with self._mutation_lock:
@@ -327,12 +376,29 @@ class ActivityTrackerRuntime:
                 await self._async_save()
             if self._session is not None:
                 await self._async_expire_interruption(now)
+                await self._async_expire_freshness(now)
                 self._notify()
 
-    async def async_process_state(self, state: State, now: datetime) -> None:
+    async def async_process_state(
+        self, state: State, now: datetime, *, source_reported: bool = True
+    ) -> None:
         """Apply a logical source observation. Public for focused tests."""
         async with self._mutation_lock:
+            if source_reported and self._heartbeat_entity_id is not None:
+                self._last_heartbeat_at = now
             await self._async_process_state(state, now)
+
+    async def async_process_heartbeat(self, now: datetime) -> None:
+        """Refresh a phone heartbeat without making it an activity observation."""
+        async with self._mutation_lock:
+            if self._heartbeat_entity_id is None:
+                return
+            if self._last_heartbeat_at is not None and now <= self._last_heartbeat_at:
+                return
+            self._last_heartbeat_at = now
+            await self._async_save()
+            self._schedule_freshness_deadline()
+            self._notify()
 
     async def _async_process_state(self, state: State, now: datetime) -> None:
         """Apply an observation while the caller holds the mutation lock."""
@@ -340,6 +406,9 @@ class ActivityTrackerRuntime:
             return
         active, app_id, app_label = self._classify_state(state)
         unavailable = state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN)
+        if active and self._heartbeat_is_stale(now):
+            active = False
+            unavailable = True
         if self._session is not None and now <= self._session.last_observed_at:
             return
         if not unavailable and self._unknown_started_at is not None:
@@ -353,6 +422,7 @@ class ActivityTrackerRuntime:
             else:
                 await self._async_handle_inactive(now)
         self._schedule_interruption_deadline()
+        self._schedule_freshness_deadline()
         self._notify()
 
     async def _async_handle_active(
@@ -474,6 +544,77 @@ class ActivityTrackerRuntime:
         self._schedule_interruption_deadline()
         self._notify()
 
+    @property
+    def _phone_silence_tolerance(self) -> int:
+        value = self.entry.options.get(
+            OPT_PHONE_SILENCE_TOLERANCE_SECONDS,
+            DEFAULT_PHONE_SILENCE_TOLERANCE_SECONDS,
+        )
+        return (
+            value
+            if isinstance(value, int) and value >= 60
+            else DEFAULT_PHONE_SILENCE_TOLERANCE_SECONDS
+        )
+
+    def _heartbeat_is_stale(self, now: datetime) -> bool:
+        """Return whether a configured phone heartbeat cannot verify activity."""
+        return (
+            self._heartbeat_entity_id is not None
+            and (
+                self._last_heartbeat_at is None
+                or now
+                >= self._last_heartbeat_at
+                + timedelta(seconds=self._phone_silence_tolerance)
+            )
+        )
+
+    async def _async_expire_freshness(self, now: datetime) -> None:
+        """Handle a phone that stopped reporting while interaction was active."""
+        if (
+            self._heartbeat_entity_id is None
+            or self._session is None
+            or self._session.state != "active"
+            or self._last_heartbeat_at is None
+        ):
+            return
+        deadline = self._last_heartbeat_at + timedelta(
+            seconds=self._phone_silence_tolerance
+        )
+        if now >= deadline:
+            await self._async_handle_unavailable(deadline)
+
+    async def _async_freshness_deadline_reached(self, now: datetime) -> None:
+        """Resolve a mobile heartbeat deadline at its exact timestamp."""
+        self._freshness_deadline_unsubscribe = None
+        async with self._mutation_lock:
+            await self._async_expire_freshness(now)
+            self._schedule_interruption_deadline()
+            self._schedule_freshness_deadline()
+            self._notify()
+
+    def _cancel_freshness_deadline(self) -> None:
+        if self._freshness_deadline_unsubscribe is not None:
+            self._freshness_deadline_unsubscribe()
+            self._freshness_deadline_unsubscribe = None
+
+    def _schedule_freshness_deadline(self) -> None:
+        """Schedule source-unavailability when a phone heartbeat becomes stale."""
+        self._cancel_freshness_deadline()
+        if (
+            not self._is_setup
+            or self._heartbeat_entity_id is None
+            or self._session is None
+            or self._session.state != "active"
+            or self._last_heartbeat_at is None
+        ):
+            return
+        deadline = self._last_heartbeat_at + timedelta(
+            seconds=self._phone_silence_tolerance
+        )
+        self._freshness_deadline_unsubscribe = async_track_point_in_time(
+            self.hass, self._async_freshness_deadline_reached, deadline
+        )
+
     def _cancel_interruption_deadline(self) -> None:
         if self._deadline_unsubscribe is not None:
             self._deadline_unsubscribe()
@@ -577,6 +718,7 @@ class ActivityTrackerRuntime:
         if self._session is None:
             return
         self._cancel_interruption_deadline()
+        self._cancel_freshness_deadline()
         session = self._session
         self._session = None
         if ended_at <= session.started_at:
@@ -686,6 +828,9 @@ class ActivityTrackerRuntime:
         self._data["checkpoint"] = self._session.as_dict() if self._session else None
         self._data["unknown_started_at"] = (
             self._unknown_started_at.isoformat() if self._unknown_started_at else None
+        )
+        self._data["last_heartbeat_at"] = (
+            self._last_heartbeat_at.isoformat() if self._last_heartbeat_at else None
         )
         await self._storage.async_save(self._data)
 

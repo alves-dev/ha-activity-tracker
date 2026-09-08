@@ -10,7 +10,7 @@ Use this pattern whenever a monitor rule is added or session handling needs to d
 
 ## Pattern
 
-Keep rule-specific interpretation in one classifier that returns `(active, identifier, label)`. Reject unavailable and unknown states before applying monitor-specific rules. Keep session transitions separate from classification so the same classification is reusable by live observation and history reconstruction.
+Keep rule-specific interpretation in one classifier that returns `(active, identifier, label)`. Reject unavailable and unknown states before applying monitor-specific rules. Keep session transitions separate from classification so the same classification is reusable by live observation and history reconstruction. When a rule requires a communication heartbeat, validate freshness outside the classifier: the heartbeat verifies the source observation but must not itself create activity.
 
 ## Example
 
@@ -34,12 +34,16 @@ def _classify_state(self, state: State) -> tuple[bool, str | None, str | None]:
 - Zone rules compare the reported person/device-tracker state with the selected
   zone's state value. `zone.home` is always `home`; other zones use their current
   name, with the entity-id object part as a startup fallback.
+- Mobile-device rules resolve the interactive source and heartbeat from one
+  Companion App device. A stale heartbeat is converted to unavailability, while
+  a fresh heartbeat alone never starts or resumes activity.
 
 ## Related
 
 - [Decision: Real-Time Session Accounting](../../decisions/003-real-time-session-accounting.md)
 - [Feature: Flexible Activity Monitoring](../../intent/feature-flexible-activity-monitoring.md)
 - [Feature: Foreground Application Insights](../../intent/feature-foreground-application-insights.md)
+- [Decision: Mobile Device Interaction Heartbeat](../../decisions/013-mobile-device-interaction-heartbeat.md)
 
 ## Status
 

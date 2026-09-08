@@ -60,6 +60,7 @@ time, restart recovery, and application switches follow the accepted contract.
 - [Feature: Foreground Application Insights](../intent/feature-foreground-application-insights.md)
 - [Decision: Real-Time Session Accounting](003-real-time-session-accounting.md)
 - [Decision: Compact Daily Summary Storage](004-compact-daily-summary-storage.md)
+- [Decision: Mobile Device Interaction Heartbeat](013-mobile-device-interaction-heartbeat.md)
 
 ## Status
 

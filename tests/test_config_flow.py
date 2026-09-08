@@ -5,10 +5,12 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+from custom_components.activity_tracker import config_flow
 from custom_components.activity_tracker.config_flow import (
     ActivityTrackerConfigFlow,
     ActivityTrackerOptionsFlow,
     _is_rule_changing,
+    _mobile_app_phone_entities,
     _rolling_periods,
     _split_states,
 )
@@ -22,6 +24,7 @@ from custom_components.activity_tracker.const import (
     CONF_PERIODS,
     OPT_DURATION_UNIT,
     TYPE_ENTITY_STATE,
+    TYPE_PHONE_IN_USE,
 )
 
 
@@ -59,6 +62,55 @@ def test_rule_change_classification_excludes_presentation_options() -> None:
         {**data, CONF_ACTIVE_STATES: ["on", "playing"]},
         options,
     )
+
+
+def test_mobile_app_phone_entities_require_enabled_companion_sensors(
+    monkeypatch,
+) -> None:
+    registry = object()
+    monkeypatch.setattr(config_flow.er, "async_get", lambda _: registry)
+    entries = [
+        SimpleNamespace(
+            entity_id="binary_sensor.phone_interactive",
+            platform="mobile_app",
+            domain="binary_sensor",
+            unique_id="webhook_interactive",
+            disabled_by=None,
+        ),
+        SimpleNamespace(
+            entity_id="sensor.phone_last_update_trigger",
+            platform="mobile_app",
+            domain="sensor",
+            unique_id="webhook_last_update_trigger",
+            disabled_by=None,
+        ),
+    ]
+    monkeypatch.setattr(
+        config_flow.er,
+        "async_entries_for_device",
+        lambda *_args, **_kwargs: entries,
+    )
+
+    assert _mobile_app_phone_entities(object(), "phone-device") == {
+        "entity_id": "binary_sensor.phone_interactive",
+        "heartbeat_entity_id": "sensor.phone_last_update_trigger",
+    }
+
+    entries[1].disabled_by = "user"
+    assert _mobile_app_phone_entities(object(), "phone-device") is None
+
+
+async def test_phone_monitor_edits_do_not_offer_recorder_reimport() -> None:
+    flow = ActivityTrackerOptionsFlow()
+    flow._monitor = {CONF_MONITOR_TYPE: TYPE_PHONE_IN_USE}
+    flow.async_show_form = lambda **kwargs: kwargs
+
+    result = await flow.async_step_history()
+    schema = result["data_schema"]
+    action = next(key for key in schema.schema if key.schema == "history_action")
+    selector_config = schema.schema[action].config
+
+    assert selector_config["options"] == ["keep", "clear"]
 
 
 async def test_config_flow_runs_the_complete_entity_monitor_journey() -> None:

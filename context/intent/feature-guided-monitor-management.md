@@ -24,6 +24,8 @@ The setup experience makes activity tracking available to Home Assistant users w
   history action.
 - [x] Users can choose report measurements independently for each selected
   reporting period.
+- [x] Mobile-device monitors are selected by one compatible Companion App
+  device and reject devices whose required entities are disabled or missing.
 
 ## Related
 
@@ -33,6 +35,7 @@ The setup experience makes activity tracking available to Home Assistant users w
 - [Decision: Administrative History Actions and Redacted Diagnostics](../decisions/010-administrative-history-and-diagnostics.md)
 - [Decision: Per-Monitor Duration Presentation Unit](../decisions/011-duration-presentation-unit.md)
 - [Decision: Period-Specific Report Sensor Selection](../decisions/012-period-specific-report-sensor-selection.md)
+- [Decision: Mobile Device Interaction Heartbeat](../decisions/013-mobile-device-interaction-heartbeat.md)
 
 ## Status
 
