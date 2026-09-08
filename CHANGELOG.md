@@ -15,6 +15,8 @@ All user-relevant changes are documented in this file.
 - Mobile screen-use sessions now stop or follow the configured unavailable-source
   behavior after the phone stops communicating, preventing a drained battery or
   lost connection from leaving an old interactive state active indefinitely.
+- Mobile-device setup now validates the Companion App entity IDs visible on the
+  selected device and shows the expected IDs when validation fails.
 
 ## [2026.8.1] - 2026-08-27
 

@@ -10,6 +10,9 @@
   padrão).
 - Relatórios de heartbeat sem mudança de estado agora são reconhecidos; um
   heartbeat isolado nunca reabre uma sessão de tela antiga.
+- A validação agora usa os IDs de entidade visíveis do dispositivo e informa no
+  formulário os IDs esperados quando as entidades obrigatórias não forem
+  encontradas.
 
 ## 2026-08-31 — Correção dos assets de marca
 

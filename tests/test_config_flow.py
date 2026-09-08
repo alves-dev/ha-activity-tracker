@@ -9,6 +9,7 @@ from custom_components.activity_tracker import config_flow
 from custom_components.activity_tracker.config_flow import (
     ActivityTrackerConfigFlow,
     ActivityTrackerOptionsFlow,
+    _expected_phone_entity_ids,
     _is_rule_changing,
     _mobile_app_phone_entities,
     _rolling_periods,
@@ -98,6 +99,20 @@ def test_mobile_app_phone_entities_require_enabled_companion_sensors(
 
     entries[1].disabled_by = "user"
     assert _mobile_app_phone_entities(object(), "phone-device") is None
+
+
+def test_phone_entity_validation_shows_ids_derived_from_device_name(
+    monkeypatch,
+) -> None:
+    device_registry = SimpleNamespace(
+        async_get=lambda _: SimpleNamespace(name="SM-A356E", name_by_user=None)
+    )
+    monkeypatch.setattr(config_flow.dr, "async_get", lambda _: device_registry)
+
+    assert _expected_phone_entity_ids(object(), "phone-device") == (
+        "Expected entity IDs: binary_sensor.sm_a356e_interactive and "
+        "sensor.sm_a356e_last_update_trigger."
+    )
 
 
 async def test_phone_monitor_edits_do_not_offer_recorder_reimport() -> None:

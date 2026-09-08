@@ -5,8 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant import config_entries
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import selector
+from homeassistant.util import slugify
 import voluptuous as vol
 
 from .configuration import (
@@ -70,6 +72,7 @@ class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._options: dict[str, Any] = {}
         self._period_metric_index = 0
         self._period_metric_choices: dict[str, list[str]] = {}
+        self._phone_entity_validation = ""
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
         if user_input is not None:
@@ -119,7 +122,11 @@ class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
                 if phone_entities is None:
                     errors[CONF_DEVICE_ID] = "mobile_app_phone_entities_missing"
+                    self._phone_entity_validation = _expected_phone_entity_ids(
+                        self.hass, user_input[CONF_DEVICE_ID]
+                    )
                 else:
+                    self._phone_entity_validation = ""
                     self._monitor.update(user_input)
                     self._monitor.update(phone_entities)
                     self._monitor[CONF_NAME] = user_input[CONF_NAME].strip()
@@ -136,6 +143,7 @@ class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
             description_placeholders={
                 "monitor_type_guidance": _source_guidance(monitor_type),
+                "phone_entity_validation": self._phone_entity_validation,
             },
         )
 
@@ -291,6 +299,7 @@ class ActivityTrackerOptionsFlow(config_entries.OptionsFlow):
         self._history_action = "keep"
         self._period_metric_index = 0
         self._period_metric_choices: dict[str, list[str]] = {}
+        self._phone_entity_validation = ""
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
         if user_input is not None:
@@ -340,7 +349,11 @@ class ActivityTrackerOptionsFlow(config_entries.OptionsFlow):
                 )
                 if phone_entities is None:
                     errors[CONF_DEVICE_ID] = "mobile_app_phone_entities_missing"
+                    self._phone_entity_validation = _expected_phone_entity_ids(
+                        self.hass, user_input[CONF_DEVICE_ID]
+                    )
                 else:
+                    self._phone_entity_validation = ""
                     self._monitor.update(user_input)
                     self._monitor.update(phone_entities)
                     self._monitor[CONF_NAME] = user_input[CONF_NAME].strip()
@@ -356,7 +369,8 @@ class ActivityTrackerOptionsFlow(config_entries.OptionsFlow):
             data_schema=_source_schema(monitor_type, self._monitor),
             errors=errors,
             description_placeholders={
-                "monitor_type_guidance": _source_guidance(monitor_type)
+                "monitor_type_guidance": _source_guidance(monitor_type),
+                "phone_entity_validation": self._phone_entity_validation,
             },
         )
 
@@ -787,7 +801,7 @@ def _mobile_app_phone_entities(
                 entry.platform == "mobile_app"
                 and entry.domain == "binary_sensor"
                 and not entry.disabled_by
-                and entry.unique_id.endswith("_interactive")
+                and entry.entity_id.endswith("_interactive")
             )
         ),
         None,
@@ -800,7 +814,7 @@ def _mobile_app_phone_entities(
                 entry.platform == "mobile_app"
                 and entry.domain == "sensor"
                 and not entry.disabled_by
-                and entry.unique_id.endswith("_last_update_trigger")
+                and entry.entity_id.endswith("_last_update_trigger")
             )
         ),
         None,
@@ -808,6 +822,22 @@ def _mobile_app_phone_entities(
     if interactive is None or heartbeat is None:
         return None
     return {CONF_ENTITY_ID: interactive, CONF_HEARTBEAT_ENTITY_ID: heartbeat}
+
+
+def _expected_phone_entity_ids(hass, device_id: str) -> str:
+    """Return the visible entity IDs expected for a selected mobile device."""
+    device = dr.async_get(hass).async_get(device_id)
+    name = (
+        device.name_by_user or device.name
+        if device is not None
+        else device_id
+    )
+    object_id = slugify(name)
+    return (
+        "Expected entity IDs: "
+        f"binary_sensor.{object_id}_interactive and "
+        f"sensor.{object_id}_last_update_trigger."
+    )
 
 
 def _split_states(value: object) -> list[str]:

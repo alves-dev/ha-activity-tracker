@@ -14,7 +14,7 @@
       },
       "source": {
         "title": "Choose the activity source",
-        "description": "{monitor_type_guidance}",
+        "description": "{monitor_type_guidance}\n\n{phone_entity_validation}",
         "data": {
           "name": "Name this monitor",
           "device_id": "Companion App device",
@@ -123,7 +123,7 @@
       },
       "source": {
         "title": "Choose the activity source",
-        "description": "{monitor_type_guidance}",
+        "description": "{monitor_type_guidance}\n\n{phone_entity_validation}",
         "data": {"name": "Name this monitor", "device_id": "Companion App device", "entity_id": "Entity to watch", "active_states": "States that mean the activity is happening", "zone_entity_id": "Zone that counts as activity", "person_entity_id": "Person to identify this monitor", "area_id": "Area that counts as activity", "presence_entity_id": "Sensor that detects presence", "value_source": "Where to read the application", "value_attribute": "Attribute containing the application ID", "label_attribute": "Attribute containing the application name (optional)"},
         "data_description": {"name": "A clear name used for this monitor device and its entities.", "device_id": "Choose one Home Assistant Companion App device. Activity Tracker finds its Interactive and Last update trigger entities automatically.", "entity_id": "The entity whose state is observed. Activity Tracker never changes it.", "active_states": "Enter exact state values separated by commas. Moving between these values keeps one session open.", "zone_entity_id": "Only this zone counts as activity.", "person_entity_id": "Used for identity and naming only. The selected presence sensor determines activity.", "area_id": "Used for the area identity and name. An area alone does not report who is present.", "presence_entity_id": "The binary sensor that reports whether the selected person is in the selected area.", "value_source": "Choose whether the application identifier comes from the entity state or one of its attributes.", "value_attribute": "Required when the application identifier is stored in an attribute.", "label_attribute": "Optional friendly application name shown in Home Assistant."}
       },

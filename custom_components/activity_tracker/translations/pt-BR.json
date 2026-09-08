@@ -14,7 +14,7 @@
       },
       "source": {
         "title": "Escolha a fonte da atividade",
-        "description": "{monitor_type_guidance}",
+        "description": "{monitor_type_guidance}\n\n{phone_entity_validation}",
         "data": {
           "name": "Nome deste monitor",
           "device_id": "Dispositivo do aplicativo Companion",
@@ -123,7 +123,7 @@
       },
       "source": {
         "title": "Escolha a fonte da atividade",
-        "description": "{monitor_type_guidance}",
+        "description": "{monitor_type_guidance}\n\n{phone_entity_validation}",
         "data": {
           "name": "Nome deste monitor",
           "device_id": "Dispositivo do aplicativo Companion",
