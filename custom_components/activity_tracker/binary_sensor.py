@@ -44,7 +44,12 @@ class ActivityBinarySensor(BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
-        return self._runtime.session is not None
+        session = self._runtime.session
+        return session is not None and getattr(session, "state", "active") == "active"
+
+    @property
+    def available(self) -> bool:
+        return getattr(self._runtime, "storage_error", None) is None
 
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(

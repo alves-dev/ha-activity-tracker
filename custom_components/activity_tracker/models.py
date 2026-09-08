@@ -56,7 +56,7 @@ class DailySummary:
             raw = value.get(key, 0)
             setattr(summary, key, float(raw) if isinstance(raw, (int, float)) else 0)
         for key in ("sessions_started", "continued_sessions", "rule_version"):
-            raw = value.get(key, 0)
+            raw = value.get(key, 1 if key == "rule_version" else 0)
             setattr(summary, key, int(raw) if isinstance(raw, int) else 0)
         shortest = value.get("shortest_session_seconds")
         summary.shortest_session_seconds = (
@@ -83,6 +83,10 @@ class Session:
     application_id: str | None = None
     application_label: str | None = None
     paused_at: datetime | None = None
+    state: str = "active"
+    active_segment_started_at: datetime | None = None
+    active_seconds: float = 0
+    pending_days: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -91,6 +95,14 @@ class Session:
             "application_id": self.application_id,
             "application_label": self.application_label,
             "paused_at": self.paused_at.isoformat() if self.paused_at else None,
+            "state": self.state,
+            "active_segment_started_at": (
+                self.active_segment_started_at.isoformat()
+                if self.active_segment_started_at
+                else None
+            ),
+            "active_seconds": self.active_seconds,
+            "pending_days": self.pending_days,
         }
 
 
