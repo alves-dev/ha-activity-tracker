@@ -13,6 +13,7 @@ from homeassistant.core import State
 from custom_components.activity_tracker.const import (
     CONF_ACTIVE_STATES,
     CONF_ENTITY_ID,
+    CONF_HEARTBEAT_ENTITY_ID,
     CONF_LABEL_ATTRIBUTE,
     CONF_MONITOR_TYPE,
     CONF_VALUE_ATTRIBUTE,
@@ -49,6 +50,17 @@ def _runtime(monitor_type: str = "entity_state") -> ActivityTrackerRuntime:
         runtime = ActivityTrackerRuntime(hass, entry)
     runtime._storage.async_save = AsyncMock()
     runtime._storage.async_remove = AsyncMock()
+    return runtime
+
+
+def _phone_runtime() -> ActivityTrackerRuntime:
+    """Create a phone monitor exactly as the configuration flow persists it."""
+    runtime = _runtime(TYPE_PHONE_IN_USE)
+    runtime.entry.data = {
+        CONF_MONITOR_TYPE: TYPE_PHONE_IN_USE,
+        CONF_ENTITY_ID: "binary_sensor.phone_interactive",
+        CONF_HEARTBEAT_ENTITY_ID: "sensor.phone_last_update_trigger",
+    }
     return runtime
 
 
@@ -123,6 +135,32 @@ async def test_process_state_starts_and_finishes_a_session() -> None:
     assert summary.total_seconds == 600
     assert summary.sessions_started == 1
     assert runtime._storage.async_save.await_count >= 2
+
+
+async def test_phone_interactive_session_needs_no_active_states() -> None:
+    """The Companion App source owns its active-state contract, not user input."""
+    runtime = _phone_runtime()
+    runtime._notify = lambda: None
+    start = datetime.now().astimezone().replace(microsecond=0)
+
+    assert CONF_ACTIVE_STATES not in runtime.entry.data
+
+    await runtime.async_process_state(
+        State("binary_sensor.phone_interactive", "on"), start
+    )
+    assert runtime.session is not None
+    assert runtime.session.state == "active"
+
+    await runtime.async_process_state(
+        State("binary_sensor.phone_interactive", "off"),
+        start + timedelta(seconds=120),
+    )
+
+    assert runtime.session is None
+    assert runtime.last_completed["duration_seconds"] == 120
+    assert runtime._data["last_heartbeat_at"] == (
+        start + timedelta(seconds=120)
+    ).isoformat()
 
 
 async def test_foreground_application_switch_finishes_previous_session() -> None:
@@ -200,8 +238,7 @@ async def test_unknown_unavailability_is_not_counted_as_activity() -> None:
 
 
 async def test_phone_silence_ends_an_interactive_session_at_the_deadline() -> None:
-    runtime = _runtime(TYPE_PHONE_IN_USE)
-    runtime.entry.data["heartbeat_entity_id"] = "sensor.phone_last_update_trigger"
+    runtime = _phone_runtime()
     runtime.entry.options[OPT_PHONE_SILENCE_TOLERANCE_SECONDS] = 60
     runtime.entry.options[OPT_UNAVAILABLE_BEHAVIOR] = "end"
     runtime._notify = lambda: None
@@ -217,8 +254,7 @@ async def test_phone_silence_ends_an_interactive_session_at_the_deadline() -> No
 
 
 async def test_phone_heartbeat_does_not_resume_a_stale_interactive_state() -> None:
-    runtime = _runtime(TYPE_PHONE_IN_USE)
-    runtime.entry.data["heartbeat_entity_id"] = "sensor.phone_last_update_trigger"
+    runtime = _phone_runtime()
     runtime.entry.options[OPT_PHONE_SILENCE_TOLERANCE_SECONDS] = 60
     runtime.entry.options[OPT_UNAVAILABLE_BEHAVIOR] = "end"
     runtime._notify = lambda: None
