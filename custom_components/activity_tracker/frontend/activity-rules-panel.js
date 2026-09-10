@@ -17,11 +17,11 @@ class ActivityRulesPanel extends HTMLElement {
     finally { this._subscribing = false; }
   }
 
-  async _open(entryId) {
+  async _open(entryId, copy = false) {
     this._busy = true; this._render();
     try {
       const result = await this._ws({ type: "activity_tracker/editor/open", ...(entryId ? { entry_id: entryId } : {}) });
-      this._editorEntry = entryId; this._draft = structuredClone(result.draft); this._preview = undefined; this._confirm = false;
+      this._editorEntry = copy ? undefined : entryId; this._draft = structuredClone(result.draft); if (copy) this._draft.name = `${this._draft.name || this._t("Activity", "Atividade")}${this._t(" (copy)", " (cópia)")}`; this._preview = undefined; this._confirm = false;
     } catch (error) { this._error = error?.message || "Unable to open editor."; }
     finally { this._busy = false; this._render(); }
   }
@@ -59,12 +59,13 @@ class ActivityRulesPanel extends HTMLElement {
     this.innerHTML = `<style>${STYLE}</style><main><header><div><h1>${this._t("Activity Rules", "Regras de atividades")}</h1><p>${this._t("Create, inspect, and safely revise complete activity rules.", "Crie, inspecione e revise com segurança regras completas de atividade.")}</p></div><button class="primary" id="add">${this._t("Add activity", "Adicionar atividade")}</button></header>${this._error ? `<div class="message error">${escape(this._error)}</div>` : ""}${this._notice ? `<div class="message notice">${escape(this._notice)}</div>` : ""}${this._draft ? this._editor() : `<div class="layout"><aside class="card list">${this._list(monitors)}</aside><section class="card rule">${selected ? this._saved(selected) : `<div class="empty">${this._t("No activities yet.", "Nenhuma atividade configurada.")}</div>`}</section></div>`}</main>`;
     this.querySelector("#add")?.addEventListener("click", () => this._open());
     this.querySelector("#edit")?.addEventListener("click", () => this._open(selected?.entry_id));
+    this.querySelector("#copy")?.addEventListener("click", () => this._open(selected?.entry_id, true));
     this.querySelectorAll("[data-entry]").forEach((el) => el.addEventListener("click", () => { this._selected = el.dataset.entry; this._render(); }));
     this._events();
   }
 
   _list(monitors) { return monitors.length ? monitors.map((monitor) => `<button class="monitor ${monitor.entry_id === this._selected ? "selected" : ""}" data-entry="${escape(monitor.entry_id)}"><i class="dot ${monitor.active ? "active" : ""}"></i>${escape(monitor.name)}<small>${monitor.active ? this._t("Active", "Ativo") : this._t("Idle", "Inativo")}</small></button>`).join("") : `<div class="empty">${this._t("No monitors found.", "Nenhum monitor encontrado.")}</div>`; }
-  _saved(monitor) { return `<div class="rule-head"><h2>${escape(monitor.name)}</h2><span class="badge ${monitor.active ? "active" : ""}">${monitor.active ? this._t("Active", "Ativo") : this._t("Idle", "Inativo")}</span><button id="edit">${this._t("Edit activity", "Editar atividade")}</button></div><div class="expressions">${this._expression(this._t("Start", "Início"), monitor.start)}${this._expression(this._t("Stop", "Término"), monitor.stop)}</div>`; }
+  _saved(monitor) { return `<div class="rule-head"><h2>${escape(monitor.name)}</h2><span class="badge ${monitor.active ? "active" : ""}">${monitor.active ? this._t("Active", "Ativo") : this._t("Idle", "Inativo")}</span><button id="copy">${this._t("Copy rule", "Copiar regra")}</button><button id="edit">${this._t("Edit activity", "Editar atividade")}</button></div><div class="expressions">${this._expression(this._t("Start", "Início"), monitor.start)}${this._expression(this._t("Stop", "Término"), monitor.stop)}</div>`; }
   _expression(title, node) { return `<section class="expression"><div class="expression-head"><h3>${title}</h3><span class="${node?.matched ? "good" : "bad"}">${node?.matched ? this._t("Matched", "Atendida") : this._t("Not matched", "Não atendida")}</span></div>${this._snapshot(node)}</section>`; }
   _snapshot(node) {
     if (node?.conditions) return `<div class="group"><strong>${node.operator === "all" ? "AND" : "OR"}</strong><div class="tree">${node.conditions.map((child) => this._snapshot(child)).join("")}</div></div>`;

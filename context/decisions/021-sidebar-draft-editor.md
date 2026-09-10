@@ -20,6 +20,8 @@ The server owns normalization, full-contract validation, template validation
 and rendering, entry creation, and entry update.
 No browser code calls config-flow HTTP endpoints or updates a config entry.
 Rule edits preserve retained history; see [Decision 024](024-preserve-history-on-rule-edit.md).
+The panel may also open an existing activity as a detached, unsaved copy; it
+never carries the source entry identifier into that draft.
 
 The draft editor supports recursive `all`/`any` groups and state,
 state-duration, report-silence, and template leaves. Zone presence and complete

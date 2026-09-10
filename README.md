@@ -56,7 +56,8 @@ Install the custom repository from HACS and restart Home Assistant.
 ## Configure
 
 Add **Activity Tracker** from *Settings → Devices & services → Add integration*.
-Use the **Activity Rules** sidebar to create and edit activities; the
+Use the **Activity Rules** sidebar to create, edit, or copy activities as
+detached drafts; the
 integration configuration page is only for initial setup.
 
 Choose at least one report period and one metric for every selected period.

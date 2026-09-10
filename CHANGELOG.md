@@ -29,6 +29,8 @@ All user-relevant changes are documented in this file.
   integration artwork.
 - Rule and midnight-policy edits now preserve retained summaries and keep an
   active session open until the new stop rule is actually satisfied.
+- Added **Copy rule**, which opens a detached editable draft without creating
+  an activity until it is explicitly saved.
 
 ## [2026.9.1] - 2026-09-09
 

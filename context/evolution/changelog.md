@@ -21,6 +21,7 @@
   icon uses `mdi:clock-outline` to match the integration artwork.
 - Rule and midnight-policy edits preserve retained summaries and leave active
   sessions open until a subsequent evaluation satisfies the new stop rule.
+- Added a copy action that opens an existing rule as an unsaved detached draft.
 
 ## 2026-09-10 — Painel lateral Activity Rules
 
