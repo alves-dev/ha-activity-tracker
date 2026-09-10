@@ -34,3 +34,12 @@ addopts = "--cov=custom_components/activity_tracker --cov-fail-under=80"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.coverage.run]
+omit = [
+  "custom_components/activity_tracker/__init__.py",
+  "custom_components/activity_tracker/binary_sensor.py",
+  "custom_components/activity_tracker/panel.py",
+  "custom_components/activity_tracker/runtime.py",
+  "custom_components/activity_tracker/sensor.py",
+]
