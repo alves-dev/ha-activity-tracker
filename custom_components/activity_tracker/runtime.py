@@ -117,9 +117,14 @@ class ActivityTrackerRuntime:
         )
         now = dt_util.now()
         if self._session is not None:
+            # Preserve an in-flight session across config-entry reloads. The
+            # next state/template event (or an existing deadline) evaluates the
+            # current rule; reloading must not retroactively end the session.
             self._engine.started_at = self._session.started_at
-            await self._async_finish(self._session.last_observed_at)
-        await self._async_evaluate(now)
+            self._schedule_deadline(now)
+            self._notify()
+        else:
+            await self._async_evaluate(now)
 
     async def async_unload(self) -> None:
         async with self._mutation_lock:

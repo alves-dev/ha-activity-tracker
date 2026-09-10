@@ -19,6 +19,8 @@
   comparisons and the same pending-duration behavior as state conditions.
 - Activity editing is now exposed only in the Activity Rules sidebar, and its
   icon uses `mdi:clock-outline` to match the integration artwork.
+- Rule and midnight-policy edits preserve retained summaries and leave active
+  sessions open until a subsequent evaluation satisfies the new stop rule.
 
 ## 2026-09-10 — Painel lateral Activity Rules
 

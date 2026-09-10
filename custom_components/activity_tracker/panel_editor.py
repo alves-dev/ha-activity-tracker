@@ -158,34 +158,23 @@ def draft_preview(hass, draft: object, entry: Any | None = None) -> dict[str, An
     data, options = normalize_draft(hass, draft)
     previous_data = dict(getattr(entry, "data", {}) or {})
     previous_options = dict(getattr(entry, "options", {}) or {})
-    clear_history = entry is not None and (
-        previous_data.get(CONF_RULE) != data[CONF_RULE]
-        or previous_options.get(OPT_CROSS_MIDNIGHT_POLICY)
-        != options[OPT_CROSS_MIDNIGHT_POLICY]
-    )
     submitted = dict(draft) if isinstance(draft, Mapping) else {}
     return {
         "draft": {**entry_draft(entry), **submitted, **data, "options": options},
         "preview": expression_snapshot(hass, data[CONF_RULE]),
         "template_previews": template_previews(hass, data[CONF_RULE]),
         "changes": _changes(previous_data, previous_options, data, options),
-        "requires_history_clear": clear_history,
+        "requires_history_clear": False,
     }
 
 
 async def async_apply_draft(
-    hass, draft: object, entry: Any | None, confirm_history_clear: bool
+    hass, draft: object, entry: Any | None, _confirm_history_clear: bool
 ) -> dict[str, Any]:
-    """Apply a validated draft only after the server-enforced destructive gate."""
+    """Apply a validated draft without rewriting retained activity history."""
     preview = draft_preview(hass, draft, entry)
-    if preview["requires_history_clear"] and not confirm_history_clear:
-        return {"applied": False, **preview}
     data, options = normalize_draft(hass, draft)
     if entry is not None:
-        if preview["requires_history_clear"]:
-            runtime = hass.data.get(DOMAIN, {}).get(entry.entry_id)
-            if runtime is not None:
-                await runtime.async_clear_history()
         hass.config_entries.async_update_entry(
             entry, title=data[CONF_NAME], data=data, options=options
         )

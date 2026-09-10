@@ -32,4 +32,6 @@ element that uses Home Assistant theme variables. Its complete editor keeps
 only an unsaved draft in the browser; protected integration commands validate
 the contract, preview templates, calculate the review diff, classify history
 impact, and apply the entry. The panel never hosts config flows or writes a
-config entry directly.
+config entry directly. Updating rules does not clear summaries; an active
+session is restored across the entry reload and remains open until a later
+evaluation matches the new stop rule.

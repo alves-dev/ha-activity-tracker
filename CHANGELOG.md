@@ -27,6 +27,8 @@ All user-relevant changes are documented in this file.
   integration configuration page remains dedicated to initial setup.
 - Changed the sidebar icon to `mdi:clock-outline` to match the clock-based
   integration artwork.
+- Rule and midnight-policy edits now preserve retained summaries and keep an
+  active session open until the new stop rule is actually satisfied.
 
 ## [2026.9.1] - 2026-09-09
 

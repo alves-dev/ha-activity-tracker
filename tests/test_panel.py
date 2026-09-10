@@ -56,7 +56,7 @@ def test_rule_panel_snapshot_exposes_live_condition_results() -> None:
     assert snapshots[0]["stop"]["template_result"] is False
 
 
-def test_draft_preview_supports_nested_conditions_templates_and_history_gate() -> None:
+def test_draft_preview_supports_nested_conditions_without_history_reset() -> None:
     now = datetime.now().astimezone()
     entry = SimpleNamespace(
         entry_id="sleep",
@@ -128,7 +128,7 @@ def test_draft_preview_supports_nested_conditions_templates_and_history_gate() -
 
     preview = draft_preview(hass, draft, entry)
 
-    assert preview["requires_history_clear"]
+    assert not preview["requires_history_clear"]
     assert preview["draft"]["rule"]["start_when"]["operator"] == "all"
     assert preview["preview"]["start"]["matched"]
     assert preview["preview"]["start"]["conditions"][1]["template_result"] is True
