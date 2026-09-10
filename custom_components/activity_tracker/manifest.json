@@ -5,7 +5,7 @@
     "@alves-dev"
   ],
   "config_flow": true,
-  "dependencies": ["panel_custom"],
+  "dependencies": ["http", "panel_custom"],
   "documentation": "https://github.com/alves-dev/ha-activity-tracker",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/alves-dev/ha-activity-tracker/issues",
