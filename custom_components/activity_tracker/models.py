@@ -147,10 +147,7 @@ def average_time_of_day(sine: float, cosine: float, count: int) -> str | None:
 
 def _time_components(when: datetime) -> tuple[float, float]:
     seconds = (
-        when.hour * 3600
-        + when.minute * 60
-        + when.second
-        + when.microsecond / 1_000_000
+        when.hour * 3600 + when.minute * 60 + when.second + when.microsecond / 1_000_000
     )
     radians = seconds * 2 * pi / 86_400
     return sin(radians), cos(radians)

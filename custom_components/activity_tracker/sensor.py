@@ -133,9 +133,7 @@ class ActivityMetricSensor(SensorEntity):
             session = self._runtime.session
             seconds = 0
             if session:
-                seconds = (
-                    dt_util.now() - session.started_at
-                ).total_seconds()
+                seconds = (dt_util.now() - session.started_at).total_seconds()
             return self._duration_value(seconds), {
                 "formatted": format_duration(seconds)
             }
@@ -163,8 +161,7 @@ class ActivityMetricSensor(SensorEntity):
             if not last:
                 return None, {}
             seconds = (
-                dt_util.now()
-                - datetime.fromisoformat(last["ended_at"])
+                dt_util.now() - datetime.fromisoformat(last["ended_at"])
             ).total_seconds()
             return self._duration_value(seconds), {
                 "formatted": format_duration(seconds)
@@ -267,8 +264,8 @@ def _metric_name(metric: str, period: str | None) -> str:
             METRIC_LAST_SESSION_END,
         }
     }
-    period_label = (period or "").replace("current_", "Current ").replace(
-        "previous_day:", "Last "
+    period_label = (
+        (period or "").replace("current_", "Current ").replace("previous_day:", "Last ")
     )
     return f"{labels.get(metric, metric)} {period_label}".strip()
 

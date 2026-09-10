@@ -19,7 +19,10 @@ class ActivityTrackerStorage:
         self._store: Store[dict[str, Any]] = Store(
             # The Home Assistant storage envelope remains v1. The payload is an
             # intentionally incompatible unified-rule schema with no migration.
-            hass, 1, f"{DOMAIN}.{entry_id}", atomic_writes=True
+            hass,
+            1,
+            f"{DOMAIN}.{entry_id}",
+            atomic_writes=True,
         )
 
     async def async_load(self) -> dict[str, Any]:

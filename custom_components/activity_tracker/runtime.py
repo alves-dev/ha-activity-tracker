@@ -246,9 +246,7 @@ class ActivityTrackerRuntime:
             OPT_CROSS_MIDNIGHT_POLICY, DEFAULT_CROSS_MIDNIGHT_POLICY
         )
         return (
-            value
-            if value in CROSS_MIDNIGHT_POLICIES
-            else DEFAULT_CROSS_MIDNIGHT_POLICY
+            value if value in CROSS_MIDNIGHT_POLICIES else DEFAULT_CROSS_MIDNIGHT_POLICY
         )
 
     async def _async_cleanup(self, today) -> None:
@@ -271,7 +269,7 @@ class ActivityTrackerRuntime:
         try:
             started_at = datetime.fromisoformat(raw["started_at"])
             observed_at = datetime.fromisoformat(raw["last_observed_at"])
-        except (KeyError, TypeError, ValueError):
+        except KeyError, TypeError, ValueError:
             return None
         return Session(started_at, observed_at)
 

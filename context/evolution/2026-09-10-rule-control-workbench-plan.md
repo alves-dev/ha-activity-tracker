@@ -32,11 +32,12 @@ Office temp Warning        └─ Person = home   ✕              duration / gr
 
 ## Architecture Boundaries
 
-- This is a future custom sidebar panel, with a bundled local frontend module
-  and a permission-checked websocket API for read-only snapshots and draft
-  validation.
-- The browser never writes config-entry data directly. The backend validates
-  the full rule and performs the existing history-clear confirmation.
+- This is a custom sidebar panel, with a bundled local frontend module and a
+  permission-checked websocket APIs for snapshots and server-owned draft
+  validation/apply.
+- The browser never writes config-entry data directly. It edits an unsaved
+  draft and uses an admin-only integration WebSocket contract; the backend
+  validates the full rule and performs the history-clear confirmation.
 - Live status is pushed from the runtime; saved rules, draft previews, and
   active-session data remain separated.
 - The panel must use Home Assistant-supported APIs and responsive layout, and
@@ -45,13 +46,14 @@ Office temp Warning        └─ Person = home   ✕              duration / gr
 ## Delivery Slices
 
 1. Read-only monitor list and live expression canvas.
-2. Draft editor with condition/group operations and server validation.
-3. Save/review/history-confirmation integration.
-4. Template preview, accessibility review, translations, and local HA smoke
-   testing.
+2. Complete draft editor for add, edit, review, and history confirmation.
+3. Template preview, accessibility review, translations, and local HA smoke
+   testing (template preview and smoke coverage delivered with the editor).
 
 ## Status
 
 - **Created**: 2026-09-10
-- **Status**: Proposed product plan; no sidebar implementation is authorized by
-  this document alone.
+- **Status**: Delivered on 2026-09-10: the sidebar is a complete draft editor
+  with server-side validation, live candidate inspection, review diff, and an
+  explicit server-enforced history-clear confirmation. Decision 021 supersedes
+  the short-lived native-flow host approach.

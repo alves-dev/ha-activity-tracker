@@ -6,7 +6,7 @@ from homeassistant.const import Platform
 
 DOMAIN = "activity_tracker"
 INTEGRATION_NAME = "Activity Tracker"
-INTEGRATION_VERSION = "2026.9.1"
+INTEGRATION_VERSION = "2026.9.2"
 PLATFORMS = (Platform.BINARY_SENSOR, Platform.SENSOR)
 
 CONF_RULE = "rule"

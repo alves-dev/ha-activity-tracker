@@ -6,7 +6,14 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN, PLATFORMS
+from .panel import async_register_panel
 from .runtime import ActivityTrackerRuntime
+
+
+async def async_setup(hass: HomeAssistant, _config: dict) -> bool:
+    """Set up integration-wide read-only UI services."""
+    await async_register_panel(hass)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

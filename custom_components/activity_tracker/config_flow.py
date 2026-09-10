@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from homeassistant import config_entries
@@ -153,9 +154,7 @@ class _RuleEditor:
     async def async_step_stop_condition(self, user_input=None):
         return await self._async_condition_step("stop", user_input)
 
-    async def async_step_template_rule(
-        self, user_input: dict[str, Any] | None = None
-    ):
+    async def async_step_template_rule(self, user_input: dict[str, Any] | None = None):
         """Collect complete native-template start and stop expressions."""
         errors: dict[str, str] = {}
         if user_input is not None:
@@ -220,9 +219,7 @@ class _RuleEditor:
             ),
             description_placeholders={
                 "conditions": _conditions_summary(self._conditions[phase]),
-                "status": _conditions_status(
-                    self.hass, self._conditions[phase], phase
-                ),
+                "status": _conditions_status(self.hass, self._conditions[phase], phase),
             },
         )
 
@@ -278,9 +275,7 @@ class _RuleEditor:
             return await self.async_step_stop_condition()
         return await self.async_step_behavior()
 
-    def _finish_condition_phase(
-        self, phase: str, errors: dict[str, str]
-    ) -> str | None:
+    def _finish_condition_phase(self, phase: str, errors: dict[str, str]) -> str | None:
         if not _has_conditions(self._conditions[phase]):
             errors["editor_action"] = "conditions_required"
             return None
@@ -348,9 +343,7 @@ class _RuleEditor:
             ),
         )
 
-    async def async_step_period_metrics(
-        self, user_input: dict[str, Any] | None = None
-    ):
+    async def async_step_period_metrics(self, user_input: dict[str, Any] | None = None):
         period = self._periods[self._period_index]
         errors: dict[str, str] = {}
         if user_input is not None:
@@ -449,10 +442,6 @@ class ActivityTrackerConfigFlow(_RuleEditor, config_entries.ConfigFlow, domain=D
             title=self._data[CONF_NAME], data=self._data, options=self._options
         )
 
-    @staticmethod
-    def async_get_options_flow(config_entry):
-        return ActivityTrackerOptionsFlow()
-
 
 class ActivityTrackerOptionsFlow(_RuleEditor, config_entries.OptionsFlow):
     """Edit the full monitor contract and clear changed rules after confirmation."""
@@ -520,26 +509,43 @@ def _condition_schema() -> vol.Schema:
     fields: dict[Any, Any] = {
         vol.Required("entity_id"): selector.EntitySelector(),
         vol.Required("condition_type", default="state"): selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=["state", "report_silence"],
-                    translation_key="condition_type",
-                )
+            selector.SelectSelectorConfig(
+                options=["state", "numeric_state", "report_silence"],
+                translation_key="condition_type",
+            )
         ),
         vol.Optional("states", default=""): str,
+        vol.Optional("attribute", default=""): str,
         vol.Required("operator", default="equals"): selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=["equals", "not_equals"],
-                    translation_key="state_operator",
-                )
+            selector.SelectSelectorConfig(
+                options=["equals", "not_equals"],
+                translation_key="state_operator",
+            )
+        ),
+        vol.Optional("numeric_value", default=""): str,
+        vol.Optional(
+            "numeric_operator", default="greater_than"
+        ): selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=[
+                    "greater_than",
+                    "greater_or_equal",
+                    "less_than",
+                    "less_or_equal",
+                    "equals",
+                    "not_equals",
+                ],
+                translation_key="numeric_operator",
+            )
         ),
         vol.Required("for_seconds", default=0): vol.All(
             vol.Coerce(int), vol.Range(min=0)
         ),
         vol.Required("next_action", default="finish"): selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=["and", "or", "finish"],
-                    translation_key="condition_next_action",
-                )
+            selector.SelectSelectorConfig(
+                options=["and", "or", "finish"],
+                translation_key="condition_next_action",
+            )
         ),
     }
     return vol.Schema(fields)
@@ -596,6 +602,22 @@ def _condition(value: Mapping[str, Any]) -> dict[str, Any] | None:
         return {
             "type": "report_silence",
             "entity_id": value["entity_id"],
+            "for_seconds": value["for_seconds"],
+        }
+    if value["condition_type"] == "numeric_state":
+        numeric_value = str(value.get("numeric_value", "")).strip()
+        try:
+            parsed_numeric = Decimal(numeric_value)
+        except InvalidOperation, ValueError:
+            return None
+        if not parsed_numeric.is_finite():
+            return None
+        return {
+            "type": "numeric_state",
+            "entity_id": value["entity_id"],
+            "attribute": str(value.get("attribute", "")).strip() or None,
+            "operator": value.get("numeric_operator", "greater_than"),
+            "value": numeric_value,
             "for_seconds": value["for_seconds"],
         }
     states = [item.strip() for item in value["states"].split(",") if item.strip()]
@@ -663,7 +685,7 @@ def _remove_condition(groups: list[list[dict[str, Any]]], value: object) -> bool
     try:
         group_index, condition_index = (int(part) for part in key.split(":", 1))
         groups[group_index].pop(condition_index)
-    except (IndexError, ValueError):
+    except IndexError, ValueError:
         return False
     groups[:] = [group for group in groups if group]
     if not groups:
@@ -692,6 +714,25 @@ def _condition_summary(condition: Mapping[str, Any]) -> str:
     if condition.get("type") == "template":
         value = str(condition.get("value_template", "")).replace("\n", " ")
         return f"template: {value[:80]}"
+    if condition.get("type") == "numeric_state":
+        symbols = {
+            "greater_than": ">",
+            "greater_or_equal": ">=",
+            "less_than": "<",
+            "less_or_equal": "<=",
+            "equals": "=",
+            "not_equals": "!=",
+        }
+        attribute = condition.get("attribute")
+        target = condition.get("value", "?")
+        duration = (
+            f" for {condition['for_seconds']}s" if condition.get("for_seconds") else ""
+        )
+        suffix = f" ({attribute})" if attribute else ""
+        return (
+            f"{condition.get('entity_id')}{suffix} "
+            f"{symbols.get(condition.get('operator'), '?')} {target}{duration}"
+        )
     comparison = "is not" if condition.get("operator") == "not_equals" else "is"
     duration = (
         f" for {condition['for_seconds']}s" if condition.get("for_seconds") else ""

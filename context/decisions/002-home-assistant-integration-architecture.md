@@ -6,7 +6,13 @@ Every tracked activity needs separate settings, lifecycle management, and Home A
 
 ## Decision
 
-Model each monitor as one Home Assistant config entry backed by a runtime instance. Use Home Assistant's config and options flows for setup and editing, and expose a binary sensor plus only the user-selected metric sensors under a corresponding virtual device.
+Model each monitor as one Home Assistant config entry backed by a runtime
+instance. The native configuration flow remains available for initial setup;
+activity editing is exposed only through the Activity Rules sidebar, which uses
+the server-owned draft-editor contract in
+[Decision 021](021-sidebar-draft-editor.md) for its complete in-panel editing
+experience. Expose a binary sensor plus only the user-selected metric sensors
+under a corresponding virtual device.
 
 ## Rationale
 
@@ -18,7 +24,8 @@ YAML configuration is explicitly excluded by project documentation. A single glo
 
 ## Outcomes
 
-Outcomes to be documented as project evolves.
+The sidebar draft editor was added on 2026-09-10 without changing the one-entry
+per-monitor lifecycle; browser code never mutates ConfigEntry data.
 
 ## Related
 

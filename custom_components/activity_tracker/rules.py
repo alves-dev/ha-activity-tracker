@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import datetime, timedelta
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 STATE_UNAVAILABLE = "unavailable"
@@ -14,6 +15,7 @@ GROUP_ANY = "any"
 CONDITION_STATE = "state"
 CONDITION_REPORT_SILENCE = "report_silence"
 CONDITION_TEMPLATE = "template"
+CONDITION_NUMERIC_STATE = "numeric_state"
 
 
 def referenced_entity_ids(expression: Mapping[str, Any]) -> set[str]:
@@ -86,9 +88,13 @@ def expression_next_deadline(  # noqa: PLR0911
             return None
         deadline = reported_at + timedelta(seconds=seconds)
         return deadline if deadline > now else None
-    if expression.get("type") != CONDITION_STATE or not _state_value_matches(
-        expression, str(getattr(state, "state", ""))
-    ):
+    if expression.get("type") == CONDITION_NUMERIC_STATE:
+        matches = _numeric_value_matches(expression, state)
+    elif expression.get("type") == CONDITION_STATE:
+        matches = _state_value_matches(expression, str(getattr(state, "state", "")))
+    else:
+        matches = False
+    if not matches:
         return None
     changed_at = _changed_at(state)
     if changed_at is None:
@@ -127,9 +133,13 @@ def _condition_matches(  # noqa: PLR0911
             and seconds > 0
             and now >= reported_at + timedelta(seconds=seconds)
         )
-    if condition.get("type") != CONDITION_STATE:
-        return False
-    if not _state_value_matches(condition, str(getattr(state, "state", ""))):
+    if condition.get("type") == CONDITION_NUMERIC_STATE:
+        matches = _numeric_value_matches(condition, state)
+    elif condition.get("type") == CONDITION_STATE:
+        matches = _state_value_matches(condition, str(getattr(state, "state", "")))
+    else:
+        matches = False
+    if not matches:
         return False
     seconds = _positive_seconds(condition.get("for_seconds"))
     if seconds == 0:
@@ -146,6 +156,34 @@ def _state_value_matches(condition: Mapping[str, Any], value: str) -> bool:
         return False
     matches = value in values
     return not matches if condition.get("operator") == "not_equals" else matches
+
+
+def _numeric_value_matches(condition: Mapping[str, Any], state: Any) -> bool:
+    """Compare a numeric state or attribute using exact decimal arithmetic."""
+    attributes = getattr(state, "attributes", {})
+    if not isinstance(attributes, Mapping):
+        attributes = {}
+    raw_value = (
+        attributes.get(condition.get("attribute"))
+        if condition.get("attribute")
+        else getattr(state, "state", None)
+    )
+    try:
+        observed = Decimal(str(raw_value))
+        target = Decimal(str(condition.get("value")))
+        if not observed.is_finite() or not target.is_finite():
+            return False
+    except InvalidOperation, TypeError, ValueError:
+        return False
+    operator = condition.get("operator", "greater_than")
+    return {
+        "greater_than": observed > target,
+        "greater_or_equal": observed >= target,
+        "less_than": observed < target,
+        "less_or_equal": observed <= target,
+        "equals": observed == target,
+        "not_equals": observed != target,
+    }.get(operator, False)
 
 
 def _positive_seconds(value: object) -> int:

@@ -2,8 +2,8 @@
 
 ## What
 
-Users create and edit monitors through focused in-application steps for the
-template, source, rule conditions, behavior, report periods, and sensors.
+Users create monitors through the native setup flow and create or edit them
+through the complete Activity Rules sidebar editor.
 
 ## Acceptance Criteria
 
@@ -18,6 +18,9 @@ template, source, rule conditions, behavior, report periods, and sensors.
   current evaluation snapshot before the user changes them.
 - [x] Setup and editing validate template-rule start and stop expressions before
   the monitor is saved.
+- [x] The Activity Rules sidebar lets an admin create or edit the complete
+  monitor contract without leaving the workspace, then shows a server-computed
+  review and history-clear confirmation before applying it.
 
 ## Related
 
@@ -26,6 +29,8 @@ template, source, rule conditions, behavior, report periods, and sensors.
 - [Decision: Unified Rule Data Reset](../decisions/016-unified-rule-data-reset-and-no-recorder-import.md)
 - [Decision: Native Rule Inspection and Control](../decisions/017-rule-editor-inspection-and-control.md)
 - [Decision: Template Activity Rules](../decisions/018-template-activity-rules.md)
+- [Decision: Sidebar Rule Workbench](../decisions/019-sidebar-rule-workbench.md)
+- [Decision: Sidebar Draft Editor](../decisions/021-sidebar-draft-editor.md)
 - [Pattern: Multi-Step Configuration Flow](../knowledge/patterns/multi-step-configuration-flow.md)
 
 ## Status

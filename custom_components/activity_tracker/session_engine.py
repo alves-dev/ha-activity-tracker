@@ -47,9 +47,7 @@ class UnifiedSessionEngine:
         if self.started_at is not None:
             if expression_matches(self._stop_when, states, now, template_results):
                 ended_at = (
-                    _unavailable_anchor(
-                        self._stop_when, states, now, template_results
-                    )
+                    _unavailable_anchor(self._stop_when, states, now, template_results)
                     or now
                 )
                 ended_at = max(ended_at, self.started_at)
@@ -71,9 +69,8 @@ class UnifiedSessionEngine:
         deadlines = [
             deadline
             for expression in expressions
-            if (
-                deadline := expression_next_deadline(expression, states, now)
-            ) is not None
+            if (deadline := expression_next_deadline(expression, states, now))
+            is not None
         ]
         return min(deadlines, default=None)
 
@@ -95,9 +92,7 @@ def _unavailable_anchor(
             anchor
             for child in children
             if isinstance(child, Mapping)
-            and (
-                anchor := _unavailable_anchor(child, states, now, template_results)
-            )
+            and (anchor := _unavailable_anchor(child, states, now, template_results))
             is not None
         ]
         return min(anchors, default=None)

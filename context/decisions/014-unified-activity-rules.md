@@ -15,6 +15,7 @@ Expressions are recursive `all` (AND) and `any` (OR) groups containing leaf
 conditions:
 
 - an entity state matching or not matching a finite set of state values;
+- an entity state or numeric attribute compared with a decimal threshold;
 - a matching state held continuously for a configured duration; and
 - an entity that has not reported for a configured duration; and
 - a native Home Assistant template whose tracked result is true.
@@ -70,6 +71,7 @@ Decisions 003, 006, and 013.
 - [Pattern: Unified Rule Evaluation and Exact Deadlines](../knowledge/patterns/unified-rule-evaluation.md)
 - [Decision: Native Rule Inspection and Control](017-rule-editor-inspection-and-control.md)
 - [Decision: Template Activity Rules](018-template-activity-rules.md)
+- [Decision: Numeric State Conditions](022-numeric-state-conditions.md)
 - [Unified-rule refactor plan](../evolution/2026-09-09-unified-rule-refactor-implementation-plan.md)
 
 ## Status

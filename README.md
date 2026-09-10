@@ -6,7 +6,7 @@
 
 [![Quality Gate](https://sonar.alves-dev.com/api/project_badges/measure?project=ha-activity-tracker&metric=alert_status)](https://sonar.alves-dev.com/dashboard?id=ha-activity-tracker)
 [![Coverage](https://sonar.alves-dev.com/api/project_badges/measure?project=ha-activity-tracker&metric=coverage)](https://sonar.alves-dev.com/dashboard?id=ha-activity-tracker)
-![Version](https://img.shields.io/badge/Version-2026.9.1-41BDF5?style=flat-square)
+![Version](https://img.shields.io/badge/Version-2026.9.2-41BDF5?style=flat-square)
 ![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.8%2B-41BDF5?logo=homeassistant)
 
 Track activities in Home Assistant with one composable start rule and one
@@ -18,7 +18,11 @@ compact daily summaries independently of Recorder.
 - A guided **Zone presence** template, a fully custom rule editor, and a
   **Template rule** for native Home Assistant expressions over states and
   attributes.
-- State, state-for-duration, and no-report-for-duration conditions.
+- An admin-only **Activity Rules** sidebar with live, theme-aware start and
+  stop trees plus a complete draft editor to add and edit activities in place.
+- State, numeric threshold, state-for-duration, and no-report-for-duration
+  conditions. Numeric rules can compare an entity state or attribute with `>`,
+  `>=`, `<`, `<=`, `=`, or `!=`.
 - AND/OR expressions, including `(A and B) or (C and D)`.
 - Explicit `unavailable` and `unknown` stop conditions. A delayed source-health
   condition confirms at its deadline but stops accounting at the first bad
@@ -52,9 +56,8 @@ Install the custom repository from HACS and restart Home Assistant.
 ## Configure
 
 Add **Activity Tracker** from *Settings → Devices & services → Add integration*.
-Choose **Zone presence** to track a person/device tracker in a selected zone, or
-choose **Custom rule** to build start and stop expressions. After every custom
-condition, the flow shows the accumulated expression; choose AND, OR, or finish.
+Use the **Activity Rules** sidebar to create and edit activities; the
+integration configuration page is only for initial setup.
 
 Choose at least one report period and one metric for every selected period.
 Monitor-wide metrics, such as current-session duration and time since the latest

@@ -8,8 +8,9 @@ does not migrate previous storage, config entries, entity identifiers, statistic
 or Recorder history.
 
 Rules are persisted as independent `start_when` and `stop_when` expressions.
-Each expression is an `all` or `any` tree of state, report-silence, or template
-leaves. The runtime subscribes to referenced entities and schedules the earliest
+Each expression is an `all` or `any` tree of state, numeric-state,
+report-silence, or template leaves. Numeric-state leaves compare exact decimal
+values from an entity state or optional attribute. The runtime subscribes to referenced entities and schedules the earliest
 eligible deadline; it never polls to make accounting decisions. For a template
 leaf, Home Assistant's template tracker discovers the referenced entities and
 attributes dynamically and re-evaluates the rule when its boolean result changes.
@@ -24,3 +25,11 @@ Durations are retained in exact seconds. Duration sensors publish the monitor's
 selected seconds, minutes, or hours unit. Only the current-day total-duration
 sensor has the `total_increasing` state class, producing `sum` statistics for
 the Home Assistant daily graph; all other totals are measurements.
+
+The admin-only **Activity Rules** sidebar receives a recursive live rule
+snapshot through a websocket subscription. It is a locally served custom
+element that uses Home Assistant theme variables. Its complete editor keeps
+only an unsaved draft in the browser; protected integration commands validate
+the contract, preview templates, calculate the review diff, classify history
+impact, and apply the entry. The panel never hosts config flows or writes a
+config entry directly.

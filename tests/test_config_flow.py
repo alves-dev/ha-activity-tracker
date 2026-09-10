@@ -169,9 +169,9 @@ async def test_flow_collects_closed_day_periods_and_metric_pairs() -> None:
 async def test_template_rule_flow_collects_start_and_stop_templates() -> None:
     flow = _flow()
 
-    assert (
-        await flow.async_step_user({"template": "template_rule"})
-    )["step_id"] == "source"
+    assert (await flow.async_step_user({"template": "template_rule"}))[
+        "step_id"
+    ] == "source"
     assert (await flow.async_step_source({"name": "High battery"}))[
         "step_id"
     ] == "template_rule"

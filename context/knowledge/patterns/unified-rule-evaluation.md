@@ -17,8 +17,8 @@ extract entity IDs or introduce a polling deadline.
 
 ## Pattern
 
-Persist expressions as `all` or `any` groups with state, report-silence, and
-template leaf conditions. Keep expression evaluation independent of Home Assistant event
+Persist expressions as `all` or `any` groups with state, numeric-state,
+report-silence, and template leaf conditions. Keep expression evaluation independent of Home Assistant event
 subscription and session accounting. Given a state snapshot and aware `now`, the
 evaluator reports whether the expression matches and the earliest future time a
 currently eligible leaf can become true.
@@ -42,6 +42,7 @@ source-health failure.
 - [Decision: Unified Activity Rules and Source Health](../../decisions/014-unified-activity-rules.md)
 - [Feature: Flexible Activity Monitoring](../../intent/feature-flexible-activity-monitoring.md)
 - [Decision: Template Activity Rules](../../decisions/018-template-activity-rules.md)
+- [Decision: Numeric State Conditions](../../decisions/022-numeric-state-conditions.md)
 
 ## Status
 
