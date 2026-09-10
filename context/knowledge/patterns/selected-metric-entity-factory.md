@@ -15,8 +15,8 @@ Use this pattern when introducing a selectable metric, a new reporting period, o
 Define metrics that require a period separately from monitor-wide metrics. At
 platform setup, iterate explicit `period → metrics` selections, then add the
 monitor-wide metrics. Give each entity a stable identifier derived from the
-monitor, metric, and optional period. Accept the legacy global-metrics plus
-periods shape during migration by translating it to the equivalent pairs.
+monitor, metric, and optional period. Do not translate retired configuration
+shapes.
 
 ## Example
 

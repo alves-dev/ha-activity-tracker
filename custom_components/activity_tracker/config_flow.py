@@ -1,149 +1,161 @@
-"""UI-only configuration and options flow for Activity Tracker."""
+"""Guided configuration for unified activity rules."""
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from homeassistant import config_entries
-from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import selector
-from homeassistant.util import slugify
 import voluptuous as vol
 
-from .configuration import (
-    migrate_monitor_data,
-    monitor_metric_selections,
-    period_metric_selections,
-)
 from .const import (
-    CONF_ACTIVE_STATES,
-    CONF_AREA_ID,
-    CONF_DEVICE_ID,
     CONF_ENABLED_METRICS,
-    CONF_ENTITY_ID,
-    CONF_HEARTBEAT_ENTITY_ID,
-    CONF_LABEL_ATTRIBUTE,
-    CONF_MONITOR_TYPE,
     CONF_NAME,
     CONF_PERIOD_METRICS,
-    CONF_PERIODS,
-    CONF_PERSON_ENTITY_ID,
-    CONF_PRESENCE_ENTITY_ID,
-    CONF_VALUE_ATTRIBUTE,
-    CONF_VALUE_SOURCE,
-    CONF_ZONE_ENTITY_ID,
+    CONF_RULE,
+    CONF_TEMPLATE,
+    CROSS_MIDNIGHT_POLICIES,
+    DEFAULT_CROSS_MIDNIGHT_POLICY,
     DEFAULT_DURATION_UNIT,
-    DEFAULT_MERGE_GAP_SECONDS,
     DEFAULT_MINIMUM_SESSION_SECONDS,
-    DEFAULT_PHONE_SILENCE_TOLERANCE_SECONDS,
     DEFAULT_RETENTION_DAYS,
-    DEFAULT_UNAVAILABLE_BEHAVIOR,
-    DEFAULT_UNAVAILABLE_TOLERANCE_SECONDS,
     DOMAIN,
-    DURATION_UNITS,
-    METRICS,
-    MONITOR_TYPES,
     NON_PERIOD_METRICS,
+    OPT_CROSS_MIDNIGHT_POLICY,
     OPT_DURATION_UNIT,
-    OPT_IMPORT_RECORDER_HISTORY,
-    OPT_MERGE_GAP_SECONDS,
     OPT_MINIMUM_SESSION_SECONDS,
-    OPT_PHONE_SILENCE_TOLERANCE_SECONDS,
     OPT_RETENTION_DAYS,
-    OPT_UNAVAILABLE_BEHAVIOR,
-    OPT_UNAVAILABLE_TOLERANCE_SECONDS,
     PERIOD_METRICS,
+    PERIOD_PREVIOUS_DAY_PREFIX,
     PERIODS,
-    TYPE_AREA_PRESENCE,
-    TYPE_FOREGROUND_APPLICATION,
-    TYPE_PHONE_IN_USE,
-    TYPE_ZONE,
 )
 
+_TEMPLATE_CUSTOM = "custom"
+_TEMPLATE_ZONE = "zone_presence"
 
-class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Create exactly one monitor per config entry."""
 
-    VERSION = 2
+class _RuleEditor:
+    """Shared step implementation for creation and complete monitor editing."""
 
-    def __init__(self) -> None:
-        self._monitor: dict[str, Any] = {}
-        self._options: dict[str, Any] = {}
-        self._period_metric_index = 0
-        self._period_metric_choices: dict[str, list[str]] = {}
-        self._phone_entity_validation = ""
+    _data: dict[str, Any]
+    _options: dict[str, Any]
+    _conditions: dict[str, list[list[dict[str, Any]]]]
+    _periods: list[str]
+    _period_index: int
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None):
+    def _start_editor(
+        self,
+        data: Mapping[str, Any] | None = None,
+        options: Mapping[str, Any] | None = None,
+    ) -> None:
+        self._data = dict(data or {})
+        self._options = dict(options or {})
+        self._conditions = {"start": [[]], "stop": [[]]}
+        self._periods = []
+        self._period_index = 0
+
+    async def _async_template_step(
+        self, step_id: str, user_input: dict[str, Any] | None
+    ):
         if user_input is not None:
-            self._monitor[CONF_MONITOR_TYPE] = user_input[CONF_MONITOR_TYPE]
+            self._data[CONF_TEMPLATE] = user_input[CONF_TEMPLATE]
             return await self.async_step_source()
         return self.async_show_form(
-            step_id="user",
+            step_id=step_id,
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_MONITOR_TYPE): selector.SelectSelector(
+                    vol.Required(
+                        CONF_TEMPLATE,
+                        default=self._data.get(CONF_TEMPLATE, _TEMPLATE_CUSTOM),
+                    ): selector.SelectSelector(
                         selector.SelectSelectorConfig(
-                            options=list(MONITOR_TYPES),
-                            mode=selector.SelectSelectorMode.LIST,
-                            translation_key="monitor_type",
+                            options=[_TEMPLATE_ZONE, _TEMPLATE_CUSTOM],
+                            translation_key="template",
                         )
                     )
                 }
             ),
-            description_placeholders={
-                "monitor_examples": (
-                    "Examples: a TV that is on, a person at a zone, or the app "
-                    "currently in the foreground on a phone."
-                )
-            },
         )
 
     async def async_step_source(self, user_input: dict[str, Any] | None = None):
-        monitor_type = self._monitor[CONF_MONITOR_TYPE]
+        template = self._data.get(CONF_TEMPLATE, _TEMPLATE_CUSTOM)
+        if user_input is not None:
+            name = str(user_input.get(CONF_NAME, "")).strip()
+            if not name:
+                return self.async_show_form(
+                    step_id="source",
+                    data_schema=self._source_schema(template),
+                    errors={CONF_NAME: "required"},
+                )
+            self._data[CONF_NAME] = name
+            if template == _TEMPLATE_ZONE:
+                tracker = user_input["entity_id"]
+                zone_id = user_input["zone_entity_id"]
+                self._data[CONF_RULE] = _zone_rule(
+                    tracker, _zone_state_value(self.hass, zone_id)
+                )
+                return await self.async_step_behavior()
+            self._conditions = {"start": [[]], "stop": [[]]}
+            return await self.async_step_start_condition()
+        return self.async_show_form(
+            step_id="source", data_schema=self._source_schema(template)
+        )
+
+    def _source_schema(self, template: str) -> vol.Schema:
+        fields: dict[Any, Any] = {
+            vol.Required(CONF_NAME, default=self._data.get(CONF_NAME, "")): str,
+        }
+        if template == _TEMPLATE_ZONE:
+            fields.update(
+                {
+                    vol.Required("entity_id"): selector.EntitySelector(
+                        selector.EntitySelectorConfig(
+                            domain=["person", "device_tracker"]
+                        )
+                    ),
+                    vol.Required("zone_entity_id"): selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="zone")
+                    ),
+                }
+            )
+        return vol.Schema(fields)
+
+    async def async_step_start_condition(self, user_input=None):
+        return await self._async_condition_step("start", user_input)
+
+    async def async_step_stop_condition(self, user_input=None):
+        return await self._async_condition_step("stop", user_input)
+
+    async def _async_condition_step(
+        self, phase: str, user_input: dict[str, Any] | None
+    ):
         errors: dict[str, str] = {}
         if user_input is not None:
-            active_states = _split_states(user_input.get(CONF_ACTIVE_STATES, ""))
-            if (
-                monitor_type
-                not in (TYPE_PHONE_IN_USE, TYPE_ZONE, TYPE_FOREGROUND_APPLICATION)
-                and not active_states
-            ):
-                errors[CONF_ACTIVE_STATES] = "required"
-            elif (
-                monitor_type == TYPE_FOREGROUND_APPLICATION
-                and user_input.get(CONF_VALUE_SOURCE) == "attribute"
-                and not str(user_input.get(CONF_VALUE_ATTRIBUTE, "")).strip()
-            ):
-                errors[CONF_VALUE_ATTRIBUTE] = "required"
-            elif monitor_type == TYPE_PHONE_IN_USE:
-                phone_entities = _mobile_app_phone_entities(
-                    self.hass, user_input[CONF_DEVICE_ID]
-                )
-                if phone_entities is None:
-                    errors[CONF_DEVICE_ID] = "mobile_app_phone_entities_missing"
-                    self._phone_entity_validation = _expected_phone_entity_ids(
-                        self.hass, user_input[CONF_DEVICE_ID]
-                    )
-                else:
-                    self._phone_entity_validation = ""
-                    self._monitor.update(user_input)
-                    self._monitor.update(phone_entities)
-                    self._monitor[CONF_NAME] = user_input[CONF_NAME].strip()
-                    return await self.async_step_behavior()
+            condition = _condition(user_input)
+            if condition is None:
+                errors["states"] = "required"
             else:
-                self._monitor.update(user_input)
-                if active_states:
-                    self._monitor[CONF_ACTIVE_STATES] = active_states
-                self._monitor[CONF_NAME] = user_input[CONF_NAME].strip()
+                self._conditions[phase][-1].append(condition)
+                action = user_input["next_action"]
+                if action == "and":
+                    return await getattr(self, f"async_step_{phase}_condition")()
+                if action == "or":
+                    self._conditions[phase].append([])
+                    return await getattr(self, f"async_step_{phase}_condition")()
+                if phase == "start":
+                    return await self.async_step_stop_condition()
+                self._data[CONF_RULE] = {
+                    "start_when": _expression(self._conditions["start"]),
+                    "stop_when": _expression(self._conditions["stop"]),
+                }
                 return await self.async_step_behavior()
         return self.async_show_form(
-            step_id="source",
-            data_schema=_source_schema(monitor_type),
+            step_id=f"{phase}_condition",
             errors=errors,
+            data_schema=_condition_schema(),
             description_placeholders={
-                "monitor_type_guidance": _source_guidance(monitor_type),
-                "phone_entity_validation": self._phone_entity_validation,
+                "conditions": _conditions_summary(self._conditions[phase])
             },
         )
 
@@ -152,93 +164,85 @@ class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._options.update(user_input)
             return await self.async_step_periods()
         return self.async_show_form(
-            step_id="behavior",
-            data_schema=_behavior_schema(
-                include_recorder_import=(
-                    self._monitor[CONF_MONITOR_TYPE] != TYPE_PHONE_IN_USE
-                ),
-                phone_in_use=self._monitor[CONF_MONITOR_TYPE] == TYPE_PHONE_IN_USE,
-            ),
+            step_id="behavior", data_schema=_behavior_schema(self._options)
         )
 
     async def async_step_periods(self, user_input: dict[str, Any] | None = None):
         errors: dict[str, str] = {}
         if user_input is not None:
-            periods = list(user_input.get(CONF_PERIODS, []))
-            rolling, invalid_rolling = _rolling_periods(
-                user_input.get("rolling_days", "")
-            )
-            if not periods and not rolling:
-                errors[CONF_PERIODS] = "required"
-            elif invalid_rolling:
-                errors["rolling_days"] = "invalid_rolling_days"
-            else:
-                self._monitor[CONF_PERIODS] = list(dict.fromkeys(periods + rolling))
-                self._period_metric_index = 0
-                self._period_metric_choices = {}
+            selected = user_input.get("periods", [])
+            selected = selected if isinstance(selected, list) else []
+            previous = _previous_day_periods(user_input.get("previous_days", ""))
+            if previous is None:
+                errors["previous_days"] = "invalid_previous_days"
+            self._periods = list(dict.fromkeys([*selected, *(previous or [])]))
+            if not self._periods:
+                errors["periods"] = "required"
+            if not errors:
+                self._data[CONF_PERIOD_METRICS] = {}
+                self._period_index = 0
                 return await self.async_step_period_metrics()
-        schema = vol.Schema(
-            {
-                vol.Optional(CONF_PERIODS, default=[]): selector.SelectSelector(
-                    selector.SelectSelectorConfig(
-                        options=list(PERIODS),
-                        multiple=True,
-                        translation_key="report_period",
-                    )
-                ),
-                vol.Optional("rolling_days", default=""): str,
-            }
-        )
         return self.async_show_form(
-            step_id="periods", data_schema=schema, errors=errors
+            step_id="periods",
+            errors=errors,
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        "periods", default=self._periods or [PERIODS[0]]
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=list(PERIODS),
+                            translation_key="report_period",
+                            multiple=True,
+                        )
+                    ),
+                    vol.Optional("previous_days", default=""): str,
+                }
+            ),
         )
 
     async def async_step_period_metrics(
         self, user_input: dict[str, Any] | None = None
     ):
-        """Collect the period-aware sensors for one selected report period."""
-        periods = self._monitor[CONF_PERIODS]
-        period = periods[self._period_metric_index]
+        period = self._periods[self._period_index]
         errors: dict[str, str] = {}
         if user_input is not None:
             metrics = [
-                metric
-                for metric in user_input.get(CONF_PERIOD_METRICS, [])
-                if metric in PERIOD_METRICS
+                item
+                for item in user_input.get(CONF_PERIOD_METRICS, [])
+                if item in PERIOD_METRICS
             ]
             if not metrics:
                 errors[CONF_PERIOD_METRICS] = "required"
             else:
-                self._period_metric_choices[period] = metrics
-                self._period_metric_index += 1
-                if self._period_metric_index < len(periods):
+                self._data[CONF_PERIOD_METRICS][period] = metrics
+                self._period_index += 1
+                if self._period_index < len(self._periods):
                     return await self.async_step_period_metrics()
-                self._monitor[CONF_PERIOD_METRICS] = self._period_metric_choices
-                self._monitor.pop(CONF_PERIODS, None)
                 return await self.async_step_metrics()
         return self.async_show_form(
             step_id="period_metrics",
+            errors=errors,
+            description_placeholders={"period": _period_summary(period)},
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_PERIOD_METRICS): selector.SelectSelector(
                         selector.SelectSelectorConfig(
-                            options=_period_metric_options(),
-                            multiple=True,
+                            options=sorted(PERIOD_METRICS),
                             translation_key="metric",
+                            multiple=True,
                         )
                     )
                 }
             ),
-            errors=errors,
-            description_placeholders={"period": period},
         )
 
     async def async_step_metrics(self, user_input: dict[str, Any] | None = None):
-        errors: dict[str, str] = {}
         if user_input is not None:
-            metrics = list(user_input.get(CONF_ENABLED_METRICS, []))
-            self._monitor[CONF_ENABLED_METRICS] = [
-                metric for metric in metrics if metric in NON_PERIOD_METRICS
+            self._data[CONF_ENABLED_METRICS] = [
+                item
+                for item in user_input.get(CONF_ENABLED_METRICS, [])
+                if item in NON_PERIOD_METRICS
             ]
             return await self.async_step_review()
         return self.async_show_form(
@@ -249,653 +253,254 @@ class ActivityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_ENABLED_METRICS, default=[]
                     ): selector.SelectSelector(
                         selector.SelectSelectorConfig(
-                            options=list(NON_PERIOD_METRICS),
-                            multiple=True,
+                            options=sorted(NON_PERIOD_METRICS),
                             translation_key="metric",
+                            multiple=True,
                         )
                     )
                 }
             ),
-            errors=errors,
         )
 
     async def async_step_review(self, user_input: dict[str, Any] | None = None):
         if user_input is not None:
-            await self.async_set_unique_id(None)
-            return self.async_create_entry(
-                title=self._monitor[CONF_NAME],
-                data=self._monitor,
-                options=self._options,
-            )
+            return await self._async_save_monitor()
+        metrics = sum(len(value) for value in self._data[CONF_PERIOD_METRICS].values())
+        metrics += len(self._data[CONF_ENABLED_METRICS])
         return self.async_show_form(
             step_id="review",
             description_placeholders={
-                "name": self._monitor[CONF_NAME],
-                "source": self._monitor.get(
-                    CONF_ENTITY_ID, self._monitor.get(CONF_PRESENCE_ENTITY_ID, "")
-                ),
-                "periods": ", ".join(self._monitor[CONF_PERIOD_METRICS]),
-                "metrics": str(
-                    sum(
-                        len(metrics)
-                        for metrics in self._monitor[CONF_PERIOD_METRICS].values()
-                    )
-                    + len(self._monitor[CONF_ENABLED_METRICS])
-                ),
+                "name": self._data[CONF_NAME],
+                "source": self._data[CONF_TEMPLATE],
+                "metrics": str(metrics),
+                "periods": ", ".join(_period_summary(item) for item in self._periods),
             },
+            data_schema=vol.Schema({}),
+        )
+
+
+class ActivityTrackerConfigFlow(_RuleEditor, config_entries.ConfigFlow, domain=DOMAIN):
+    """Create one monitor from a zone preset or a custom rule."""
+
+    VERSION = 3
+
+    def __init__(self) -> None:
+        self._start_editor()
+
+    async def async_step_user(self, user_input: dict[str, Any] | None = None):
+        return await self._async_template_step("user", user_input)
+
+    async def _async_save_monitor(self):
+        return self.async_create_entry(
+            title=self._data[CONF_NAME], data=self._data, options=self._options
         )
 
     @staticmethod
-    def async_get_options_flow(config_entry: config_entries.ConfigEntry):
+    def async_get_options_flow(config_entry):
         return ActivityTrackerOptionsFlow()
 
 
-class ActivityTrackerOptionsFlow(config_entries.OptionsFlow):
-    """Reconfigure every part of an existing monitor."""
-
-    def __init__(self) -> None:
-        self._monitor: dict[str, Any] = {}
-        self._options: dict[str, Any] = {}
-        self._history_action = "keep"
-        self._period_metric_index = 0
-        self._period_metric_choices: dict[str, list[str]] = {}
-        self._phone_entity_validation = ""
+class ActivityTrackerOptionsFlow(_RuleEditor, config_entries.OptionsFlow):
+    """Edit the full monitor contract and clear changed rules after confirmation."""
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
-        if user_input is not None:
-            self._monitor = migrate_monitor_data(self.config_entry.data)
-            self._monitor[CONF_MONITOR_TYPE] = user_input[CONF_MONITOR_TYPE]
-            self._options = dict(self.config_entry.options)
-            self._options.setdefault(OPT_DURATION_UNIT, "s")
-            return await self.async_step_source()
-        return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        CONF_MONITOR_TYPE,
-                        default=self.config_entry.data.get(CONF_MONITOR_TYPE),
-                    ): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=list(MONITOR_TYPES),
-                            mode=selector.SelectSelectorMode.LIST,
-                            translation_key="monitor_type",
-                        )
-                    )
-                }
-            ),
-        )
+        if not hasattr(self, "_data"):
+            self._start_editor(self.config_entry.data, self.config_entry.options)
+        return await self._async_template_step("init", user_input)
 
-    async def async_step_source(self, user_input: dict[str, Any] | None = None):
-        monitor_type = self._monitor[CONF_MONITOR_TYPE]
-        errors: dict[str, str] = {}
-        if user_input is not None:
-            active_states = _split_states(user_input.get(CONF_ACTIVE_STATES, ""))
-            if (
-                monitor_type
-                not in (TYPE_PHONE_IN_USE, TYPE_ZONE, TYPE_FOREGROUND_APPLICATION)
-                and not active_states
-            ):
-                errors[CONF_ACTIVE_STATES] = "required"
-            elif (
-                monitor_type == TYPE_FOREGROUND_APPLICATION
-                and user_input.get(CONF_VALUE_SOURCE) == "attribute"
-                and not str(user_input.get(CONF_VALUE_ATTRIBUTE, "")).strip()
-            ):
-                errors[CONF_VALUE_ATTRIBUTE] = "required"
-            elif monitor_type == TYPE_PHONE_IN_USE:
-                phone_entities = _mobile_app_phone_entities(
-                    self.hass, user_input[CONF_DEVICE_ID]
-                )
-                if phone_entities is None:
-                    errors[CONF_DEVICE_ID] = "mobile_app_phone_entities_missing"
-                    self._phone_entity_validation = _expected_phone_entity_ids(
-                        self.hass, user_input[CONF_DEVICE_ID]
-                    )
-                else:
-                    self._phone_entity_validation = ""
-                    self._monitor.update(user_input)
-                    self._monitor.update(phone_entities)
-                    self._monitor[CONF_NAME] = user_input[CONF_NAME].strip()
-                    return await self.async_step_behavior()
-            else:
-                self._monitor.update(user_input)
-                if active_states:
-                    self._monitor[CONF_ACTIVE_STATES] = active_states
-                self._monitor[CONF_NAME] = user_input[CONF_NAME].strip()
-                return await self.async_step_behavior()
-        return self.async_show_form(
-            step_id="source",
-            data_schema=_source_schema(monitor_type, self._monitor),
-            errors=errors,
-            description_placeholders={
-                "monitor_type_guidance": _source_guidance(monitor_type),
-                "phone_entity_validation": self._phone_entity_validation,
-            },
-        )
-
-    async def async_step_behavior(self, user_input: dict[str, Any] | None = None):
-        if user_input is not None:
-            self._options.update(user_input)
-            self._options.pop(OPT_IMPORT_RECORDER_HISTORY, None)
-            return await self.async_step_periods()
-        return self.async_show_form(
-            step_id="behavior",
-            data_schema=_behavior_schema(
-                self._options,
-                phone_in_use=self._monitor[CONF_MONITOR_TYPE] == TYPE_PHONE_IN_USE,
-            ),
-        )
-
-    async def async_step_periods(self, user_input: dict[str, Any] | None = None):
-        errors: dict[str, str] = {}
-        if user_input is not None:
-            periods = list(user_input.get(CONF_PERIODS, []))
-            rolling, invalid_rolling = _rolling_periods(
-                user_input.get("rolling_days", "")
-            )
-            if not periods and not rolling:
-                errors[CONF_PERIODS] = "required"
-            elif invalid_rolling:
-                errors["rolling_days"] = "invalid_rolling_days"
-            else:
-                self._monitor[CONF_PERIODS] = list(dict.fromkeys(periods + rolling))
-                self._period_metric_index = 0
-                self._period_metric_choices = {}
-                return await self.async_step_period_metrics()
-        current_periods = list(period_metric_selections(self._monitor))
-        rolling = ", ".join(
-            item.split(":", 1)[1]
-            for item in current_periods
-            if item.startswith("rolling_days:")
-        )
-        return self.async_show_form(
-            step_id="periods",
-            data_schema=vol.Schema(
-                {
-                    vol.Optional(
-                        CONF_PERIODS,
-                        default=[
-                            item
-                            for item in current_periods
-                            if not item.startswith("rolling_days:")
-                        ],
-                    ): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=list(PERIODS),
-                            multiple=True,
-                            translation_key="report_period",
-                        )
-                    ),
-                    vol.Optional("rolling_days", default=rolling): str,
-                }
-            ),
-            errors=errors,
-        )
-
-    async def async_step_period_metrics(
-        self, user_input: dict[str, Any] | None = None
-    ):
-        """Collect the period-aware sensors for one edited report period."""
-        periods = self._monitor[CONF_PERIODS]
-        period = periods[self._period_metric_index]
-        errors: dict[str, str] = {}
-        if user_input is not None:
-            metrics = [
-                metric
-                for metric in user_input.get(CONF_PERIOD_METRICS, [])
-                if metric in PERIOD_METRICS
-            ]
-            if not metrics:
-                errors[CONF_PERIOD_METRICS] = "required"
-            else:
-                self._period_metric_choices[period] = metrics
-                self._period_metric_index += 1
-                if self._period_metric_index < len(periods):
-                    return await self.async_step_period_metrics()
-                self._monitor[CONF_PERIOD_METRICS] = self._period_metric_choices
-                self._monitor.pop(CONF_PERIODS, None)
-                return await self.async_step_metrics()
-        return self.async_show_form(
-            step_id="period_metrics",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        CONF_PERIOD_METRICS,
-                        default=period_metric_selections(self._monitor).get(period, []),
-                    ): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=_period_metric_options(),
-                            multiple=True,
-                            translation_key="metric",
-                        )
-                    )
-                }
-            ),
-            errors=errors,
-            description_placeholders={"period": period},
-        )
-
-    async def async_step_metrics(self, user_input: dict[str, Any] | None = None):
-        errors: dict[str, str] = {}
-        if user_input is not None:
-            metrics = list(user_input.get(CONF_ENABLED_METRICS, []))
-            self._monitor[CONF_ENABLED_METRICS] = [
-                metric for metric in metrics if metric in NON_PERIOD_METRICS
-            ]
-            if _is_rule_changing(
-                self.config_entry.data,
-                self.config_entry.options,
-                self._monitor,
-                self._options,
-            ):
-                return await self.async_step_history()
-            return await self._async_save_options()
-        return self.async_show_form(
-            step_id="metrics",
-            data_schema=vol.Schema(
-                {
-                    vol.Optional(
-                        CONF_ENABLED_METRICS,
-                        default=monitor_metric_selections(self._monitor),
-                    ): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=list(NON_PERIOD_METRICS),
-                            multiple=True,
-                            translation_key="metric",
-                        )
-                    )
-                }
-            ),
-            errors=errors,
-        )
-
-    async def async_step_history(self, user_input: dict[str, Any] | None = None):
-        if user_input is not None:
-            action = user_input["history_action"]
-            self._history_action = action
-            if action == "keep":
-                return await self._async_save_options()
+    async def _async_save_monitor(self):
+        rule_changed = self.config_entry.data.get(CONF_RULE) != self._data[CONF_RULE]
+        policy_changed = self.config_entry.options.get(
+            OPT_CROSS_MIDNIGHT_POLICY
+        ) != self._options.get(OPT_CROSS_MIDNIGHT_POLICY)
+        if rule_changed or policy_changed:
             return await self.async_step_confirm_history()
-        return self.async_show_form(
-            step_id="history",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        "history_action", default="keep"
-                    ): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=(
-                                ["keep", "clear"]
-                                if self._monitor[CONF_MONITOR_TYPE]
-                                == TYPE_PHONE_IN_USE
-                                else ["keep", "clear", "reimport"]
-                            ),
-                            mode=selector.SelectSelectorMode.LIST,
-                            translation_key="history_action",
-                        )
-                    )
-                }
-            ),
-        )
+        return await self._async_apply_update()
 
     async def async_step_confirm_history(
         self, user_input: dict[str, Any] | None = None
     ):
-        """Require a distinct confirmation before a destructive history action."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            if user_input.get("confirm_history_action") is not True:
-                errors["confirm_history_action"] = "confirmation_required"
-            else:
-                return await self._async_save_options()
+            if user_input.get("confirm_history_action"):
+                runtime = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
+                if runtime is not None:
+                    await runtime.async_clear_history()
+                return await self._async_apply_update()
+            errors["confirm_history_action"] = "confirmation_required"
         return self.async_show_form(
             step_id="confirm_history",
-            data_schema=vol.Schema(
-                {vol.Required("confirm_history_action", default=False): bool}
-            ),
             errors=errors,
-            description_placeholders={"action": self._history_action},
+            data_schema=vol.Schema(
+                {vol.Optional("confirm_history_action", default=False): bool}
+            ),
         )
 
-    async def _async_save_options(self):
-        """Save the edited monitor and apply a previously confirmed action."""
-        if self._history_action == "reimport":
-            self._options[OPT_IMPORT_RECORDER_HISTORY] = True
+    async def _async_apply_update(self):
         self.hass.config_entries.async_update_entry(
             self.config_entry,
-            data=self._monitor,
-            title=self._monitor[CONF_NAME],
+            title=self._data[CONF_NAME],
+            data=self._data,
+            options=self._options,
         )
-        if self._history_action == "clear":
-            runtime = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
-            if runtime is not None:
-                await runtime.async_clear_history()
-        return self.async_create_entry(title="", data=self._options)
+        return self.async_create_entry(title="", data={})
 
 
-def _is_rule_changing(
-    previous_data: dict[str, Any],
-    previous_options: dict[str, Any],
-    updated_data: dict[str, Any],
-    updated_options: dict[str, Any],
-) -> bool:
-    """Return whether an edit changes the meaning of retained activity."""
-    rule_data_keys = (
-        CONF_MONITOR_TYPE,
-        CONF_DEVICE_ID,
-        CONF_ENTITY_ID,
-        CONF_HEARTBEAT_ENTITY_ID,
-        CONF_ACTIVE_STATES,
-        CONF_ZONE_ENTITY_ID,
-        CONF_PRESENCE_ENTITY_ID,
-        CONF_VALUE_SOURCE,
-        CONF_VALUE_ATTRIBUTE,
-    )
-    rule_option_keys = (
-        OPT_MINIMUM_SESSION_SECONDS,
-        OPT_PHONE_SILENCE_TOLERANCE_SECONDS,
-        OPT_MERGE_GAP_SECONDS,
-        OPT_UNAVAILABLE_BEHAVIOR,
-        OPT_UNAVAILABLE_TOLERANCE_SECONDS,
-    )
-    return any(
-        previous_data.get(key) != updated_data.get(key) for key in rule_data_keys
-    ) or any(
-        previous_options.get(key) != updated_options.get(key)
-        for key in rule_option_keys
+def _condition_schema() -> vol.Schema:
+    return vol.Schema(
+        {
+            vol.Required("entity_id"): selector.EntitySelector(),
+            vol.Required("condition_type", default="state"): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=["state", "report_silence"],
+                    translation_key="condition_type",
+                )
+            ),
+            vol.Optional("states", default=""): str,
+            vol.Required("operator", default="equals"): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=["equals", "not_equals"],
+                    translation_key="state_operator",
+                )
+            ),
+            vol.Required("for_seconds", default=0): vol.All(
+                vol.Coerce(int), vol.Range(min=0)
+            ),
+            vol.Required("next_action", default="finish"): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=["and", "or", "finish"],
+                    translation_key="condition_next_action",
+                )
+            ),
+        }
     )
 
 
-def _source_schema(
-    monitor_type: str, defaults: dict[str, Any] | None = None
-) -> vol.Schema:
-    """Build the source form for a monitor type, optionally prefilled."""
-    defaults = defaults or {}
-
-    def required(
-        key: str, validator: Any, fallback: Any = vol.UNDEFINED
-    ) -> tuple[Any, Any]:
-        default = defaults.get(key, fallback)
-        return (
-            vol.Required(key, default=default)
-            if default is not vol.UNDEFINED
-            else vol.Required(key),
-            validator,
-        )
-
-    fields = [required(CONF_NAME, str)]
-    if monitor_type == TYPE_ZONE:
-        fields.extend(
-            (
-                required(
-                    CONF_ENTITY_ID,
-                    selector.EntitySelector(
-                        selector.EntitySelectorConfig(
-                            domain=["person", "device_tracker"]
-                        )
-                    ),
-                ),
-                required(
-                    CONF_ZONE_ENTITY_ID,
-                    selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="zone")
-                    ),
-                ),
-            )
-        )
-    elif monitor_type == TYPE_AREA_PRESENCE:
-        fields.extend(
-            (
-                required(
-                    CONF_PERSON_ENTITY_ID,
-                    selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="person")
-                    ),
-                ),
-                required(CONF_AREA_ID, selector.AreaSelector()),
-                required(
-                    CONF_PRESENCE_ENTITY_ID,
-                    selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="binary_sensor")
-                    ),
-                ),
-                required(CONF_ACTIVE_STATES, str, "on"),
-            )
-        )
-    elif monitor_type == TYPE_FOREGROUND_APPLICATION:
-        fields.extend(
-            (
-                required(CONF_ENTITY_ID, selector.EntitySelector()),
-                required(
-                    CONF_VALUE_SOURCE,
-                    selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=["state", "attribute"],
-                            mode=selector.SelectSelectorMode.LIST,
-                            translation_key="application_value_source",
-                        )
-                    ),
-                    "state",
-                ),
-                (
-                    vol.Optional(
-                        CONF_VALUE_ATTRIBUTE,
-                        default=defaults.get(CONF_VALUE_ATTRIBUTE, ""),
-                    ),
-                    str,
-                ),
-                (
-                    vol.Optional(
-                        CONF_LABEL_ATTRIBUTE,
-                        default=defaults.get(CONF_LABEL_ATTRIBUTE, ""),
-                    ),
-                    str,
-                ),
-            )
-        )
-    elif monitor_type == TYPE_PHONE_IN_USE:
-        fields.append(
-            required(
-                CONF_DEVICE_ID,
-                selector.DeviceSelector(
-                    selector.DeviceSelectorConfig(filter={"integration": "mobile_app"})
-                ),
-            )
-        )
-    else:
-        fields.extend(
-            (
-                required(CONF_ENTITY_ID, selector.EntitySelector()),
-                required(CONF_ACTIVE_STATES, str),
-            )
-        )
-    return vol.Schema(dict(fields))
-
-
-def _behavior_schema(
-    defaults: dict[str, Any] | None = None,
-    *,
-    include_recorder_import: bool = False,
-    phone_in_use: bool = False,
-) -> vol.Schema:
-    defaults = defaults or {}
-    fields: dict[Any, Any] = {
-        vol.Required(
-            OPT_DURATION_UNIT,
-            default=defaults.get(OPT_DURATION_UNIT, DEFAULT_DURATION_UNIT),
-        ): selector.SelectSelector(
-            selector.SelectSelectorConfig(
-                options=list(DURATION_UNITS),
-                mode=selector.SelectSelectorMode.LIST,
-                translation_key="duration_unit",
-            )
-        ),
-        vol.Required(
-            OPT_RETENTION_DAYS,
-            default=defaults.get(OPT_RETENTION_DAYS, DEFAULT_RETENTION_DAYS),
-        ): vol.All(vol.Coerce(int), vol.Range(min=7)),
-        vol.Required(
-            OPT_MINIMUM_SESSION_SECONDS,
-            default=defaults.get(
-                OPT_MINIMUM_SESSION_SECONDS, DEFAULT_MINIMUM_SESSION_SECONDS
-            ),
-        ): vol.All(vol.Coerce(int), vol.Range(min=0)),
-        vol.Required(
-            OPT_UNAVAILABLE_BEHAVIOR,
-            default=defaults.get(
-                OPT_UNAVAILABLE_BEHAVIOR,
-                "end" if phone_in_use else DEFAULT_UNAVAILABLE_BEHAVIOR,
-            ),
-        ): selector.SelectSelector(
-            selector.SelectSelectorConfig(
-                options=["end", "pending", "unknown"],
-                mode=selector.SelectSelectorMode.LIST,
-                translation_key="unavailable_behavior",
-            )
-        ),
-        vol.Required(
-            OPT_UNAVAILABLE_TOLERANCE_SECONDS,
-            default=defaults.get(
-                OPT_UNAVAILABLE_TOLERANCE_SECONDS,
-                DEFAULT_UNAVAILABLE_TOLERANCE_SECONDS,
-            ),
-        ): vol.All(vol.Coerce(int), vol.Range(min=0)),
-        vol.Required(
-            OPT_MERGE_GAP_SECONDS,
-            default=defaults.get(OPT_MERGE_GAP_SECONDS, DEFAULT_MERGE_GAP_SECONDS),
-        ): vol.All(vol.Coerce(int), vol.Range(min=0)),
-    }
-    if phone_in_use:
-        fields[
+def _behavior_schema(defaults: Mapping[str, Any]) -> vol.Schema:
+    return vol.Schema(
+        {
             vol.Required(
-                OPT_PHONE_SILENCE_TOLERANCE_SECONDS,
+                OPT_DURATION_UNIT,
+                default=defaults.get(OPT_DURATION_UNIT, DEFAULT_DURATION_UNIT),
+            ): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=["s", "min", "h"], translation_key="duration_unit"
+                )
+            ),
+            vol.Required(
+                OPT_RETENTION_DAYS,
+                default=defaults.get(OPT_RETENTION_DAYS, DEFAULT_RETENTION_DAYS),
+            ): vol.All(vol.Coerce(int), vol.Range(min=1)),
+            vol.Required(
+                OPT_MINIMUM_SESSION_SECONDS,
                 default=defaults.get(
-                    OPT_PHONE_SILENCE_TOLERANCE_SECONDS,
-                    DEFAULT_PHONE_SILENCE_TOLERANCE_SECONDS,
+                    OPT_MINIMUM_SESSION_SECONDS, DEFAULT_MINIMUM_SESSION_SECONDS
                 ),
-            )
-        ] = vol.All(vol.Coerce(int), vol.Range(min=60))
-    if include_recorder_import:
-        fields[
-            vol.Optional(
-                OPT_IMPORT_RECORDER_HISTORY,
-                default=defaults.get(OPT_IMPORT_RECORDER_HISTORY, False),
-            )
-        ] = selector.BooleanSelector()
-    return vol.Schema(fields)
+            ): vol.All(vol.Coerce(int), vol.Range(min=0)),
+            vol.Required(
+                OPT_CROSS_MIDNIGHT_POLICY,
+                default=defaults.get(
+                    OPT_CROSS_MIDNIGHT_POLICY, DEFAULT_CROSS_MIDNIGHT_POLICY
+                ),
+            ): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=list(CROSS_MIDNIGHT_POLICIES),
+                    translation_key="cross_midnight_policy",
+                )
+            ),
+        }
+    )
 
 
-def _mobile_app_phone_entities(
-    hass, device_id: str
-) -> dict[str, str] | None:
-    """Resolve the enabled mobile-app interaction and heartbeat entities."""
-    entries = er.async_entries_for_device(
-        er.async_get(hass), device_id, include_disabled_entities=True
-    )
-    interactive = next(
-        (
-            entry.entity_id
-            for entry in entries
-            if (
-                entry.platform == "mobile_app"
-                and entry.domain == "binary_sensor"
-                and not entry.disabled_by
-                and entry.entity_id.endswith("_interactive")
-            )
-        ),
-        None,
-    )
-    heartbeat = next(
-        (
-            entry.entity_id
-            for entry in entries
-            if (
-                entry.platform == "mobile_app"
-                and entry.domain == "sensor"
-                and not entry.disabled_by
-                and entry.entity_id.endswith("_last_update_trigger")
-            )
-        ),
-        None,
-    )
-    if interactive is None or heartbeat is None:
+def _condition(value: Mapping[str, Any]) -> dict[str, Any] | None:
+    if value["condition_type"] == "report_silence":
+        return {
+            "type": "report_silence",
+            "entity_id": value["entity_id"],
+            "for_seconds": value["for_seconds"],
+        }
+    states = [item.strip() for item in value["states"].split(",") if item.strip()]
+    if not states:
         return None
-    return {CONF_ENTITY_ID: interactive, CONF_HEARTBEAT_ENTITY_ID: heartbeat}
-
-
-def _expected_phone_entity_ids(hass, device_id: str) -> str:
-    """Return the visible entity IDs expected for a selected mobile device."""
-    device = dr.async_get(hass).async_get(device_id)
-    name = (
-        device.name_by_user or device.name
-        if device is not None
-        else device_id
-    )
-    object_id = slugify(name)
-    return (
-        "Expected entity IDs: "
-        f"binary_sensor.{object_id}_interactive and "
-        f"sensor.{object_id}_last_update_trigger."
-    )
-
-
-def _split_states(value: object) -> list[str]:
-    return (
-        [item.strip() for item in value.split(",") if item.strip()]
-        if isinstance(value, str)
-        else []
-    )
-
-
-def _rolling_periods(value: object) -> tuple[list[str], bool]:
-    """Parse user-entered rolling-day periods and identify invalid values."""
-    if not isinstance(value, str):
-        return [], False
-    result: list[str] = []
-    invalid = False
-    for item in value.split(","):
-        if not item.strip():
-            continue
-        try:
-            days = int(item.strip())
-        except ValueError:
-            invalid = True
-            continue
-        if days > 0:
-            result.append(f"rolling_days:{days}")
-        else:
-            invalid = True
-    return result, invalid
-
-
-def _period_metric_options() -> list[str]:
-    """Return period-aware metrics in the established selector order."""
-    return [metric for metric in METRICS if metric in PERIOD_METRICS]
-
-
-def _source_guidance(monitor_type: str) -> str:
-    """Return a short source-specific explanation shown in the form."""
-    guidance = {
-        TYPE_ZONE: (
-            "The selected person or device is active only while its state exactly "
-            "matches the selected zone."
-        ),
-        TYPE_AREA_PRESENCE: (
-            "Choose the person and area for the monitor name, then choose the binary "
-            "sensor that authoritatively reports whether that person is present."
-        ),
-        TYPE_FOREGROUND_APPLICATION: (
-            "Every non-empty application value is activity. A different application "
-            "value starts a new application session."
-        ),
-        TYPE_PHONE_IN_USE: (
-            "Choose a Home Assistant Companion App device. Its Interactive and "
-            "Last update trigger entities must be enabled."
-        ),
+    return {
+        "type": "state",
+        "entity_id": value["entity_id"],
+        "states": states,
+        "operator": value["operator"],
+        "for_seconds": value["for_seconds"],
     }
-    return guidance.get(
-        monitor_type,
-        "The monitor is active whenever the source entity state matches one of the "
-        "states you enter.",
-    )
+
+
+def _expression(groups: list[list[dict[str, Any]]]) -> dict[str, Any]:
+    """Build an OR of AND groups, including `(A and B) or (C and D)`."""
+    return {
+        "operator": "any",
+        "conditions": [
+            {"operator": "all", "conditions": group} for group in groups if group
+        ],
+    }
+
+
+def _conditions_summary(groups: list[list[dict[str, Any]]]) -> str:
+    alternatives = []
+    for group in groups:
+        labels = []
+        for item in group:
+            if item["type"] == "report_silence":
+                labels.append(f"{item['entity_id']} silent for {item['for_seconds']}s")
+            else:
+                comparison = "is not" if item.get("operator") == "not_equals" else "is"
+                duration = (
+                    f" for {item['for_seconds']}s"
+                    if item.get("for_seconds")
+                    else ""
+                )
+                labels.append(
+                    f"{item['entity_id']} {comparison} "
+                    f"{', '.join(item['states'])}{duration}"
+                )
+        if labels:
+            alternatives.append(" AND ".join(labels))
+    return " OR ".join(f"({item})" for item in alternatives) or "No conditions yet."
+
+
+def _previous_day_periods(value: object) -> list[str] | None:
+    text = str(value).strip()
+    if not text:
+        return []
+    try:
+        days = [int(item.strip()) for item in text.split(",")]
+    except ValueError:
+        return None
+    if not days or any(day < 1 for day in days):
+        return None
+    return [f"{PERIOD_PREVIOUS_DAY_PREFIX}{day}" for day in dict.fromkeys(days)]
+
+
+def _period_summary(period: str) -> str:
+    if period.startswith(PERIOD_PREVIOUS_DAY_PREFIX):
+        return f"Last {period.split(':', 1)[1]}"
+    return period.replace("_", " ").title()
+
+
+def _zone_state_value(hass, zone_id: str) -> str:
+    if zone_id == "zone.home":
+        return "home"
+    zone = hass.states.get(zone_id)
+    return zone.name if zone is not None else zone_id.removeprefix("zone.")
+
+
+def _zone_rule(entity_id: str, zone_state: str) -> dict[str, Any]:
+    return {
+        "start_when": {
+            "type": "state",
+            "entity_id": entity_id,
+            "states": [zone_state],
+        },
+        "stop_when": {
+            "type": "state",
+            "entity_id": entity_id,
+            "states": [zone_state],
+            "operator": "not_equals",
+        },
+    }

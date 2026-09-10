@@ -2,6 +2,20 @@
 
 All user-relevant changes are documented in this file.
 
+## [2026.9.1] - 2026-09-09
+
+### Changed
+
+- Replaced monitor types with one composable start/stop rule engine. Zone
+  presence is the only guided template; all other monitors use custom rules.
+- Removed all compatibility migration, Recorder import/reimport, phone,
+  foreground-application, area-presence, merge-gap, global unavailable-policy,
+  and unknown-duration paths. Existing monitors must be removed before upgrade.
+- Added closed historical-day reports, circular average start/end times,
+  duration-since-last-session, and selectable cross-midnight attribution.
+- The current-day total-duration sensor now publishes daily `total_increasing`
+  statistics suitable for `sum` graphs.
+
 ## [2026.9.0] - 2026-09-08
 
 ### Added

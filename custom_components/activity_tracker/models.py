@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, time, timedelta
+from math import atan2, cos, pi, sin
 from typing import Any
 
 
@@ -13,32 +14,30 @@ class DailySummary:
 
     total_seconds: float = 0
     sessions_started: int = 0
-    continued_sessions: int = 0
     longest_session_seconds: float = 0
     shortest_session_seconds: float | None = None
     exact_seconds: float = 0
-    unknown_seconds: float = 0
-    first_active_at: str | None = None
-    last_inactive_at: str | None = None
-    complete: bool = True
-    rule_version: int = 1
-    applications: dict[str, dict[str, Any]] = field(default_factory=dict)
+    start_time_sin: float = 0
+    start_time_cos: float = 0
+    start_time_count: int = 0
+    end_time_sin: float = 0
+    end_time_cos: float = 0
+    end_time_count: int = 0
 
     def as_dict(self) -> dict[str, Any]:
         """Serialize the summary."""
         return {
             "total_seconds": self.total_seconds,
             "sessions_started": self.sessions_started,
-            "continued_sessions": self.continued_sessions,
             "longest_session_seconds": self.longest_session_seconds,
             "shortest_session_seconds": self.shortest_session_seconds,
             "exact_seconds": self.exact_seconds,
-            "unknown_seconds": self.unknown_seconds,
-            "first_active_at": self.first_active_at,
-            "last_inactive_at": self.last_inactive_at,
-            "complete": self.complete,
-            "rule_version": self.rule_version,
-            "applications": self.applications,
+            "start_time_sin": self.start_time_sin,
+            "start_time_cos": self.start_time_cos,
+            "start_time_count": self.start_time_count,
+            "end_time_sin": self.end_time_sin,
+            "end_time_cos": self.end_time_cos,
+            "end_time_count": self.end_time_count,
         }
 
     @classmethod
@@ -51,27 +50,39 @@ class DailySummary:
             "total_seconds",
             "longest_session_seconds",
             "exact_seconds",
-            "unknown_seconds",
+            "start_time_sin",
+            "start_time_cos",
+            "end_time_sin",
+            "end_time_cos",
         ):
             raw = value.get(key, 0)
             setattr(summary, key, float(raw) if isinstance(raw, (int, float)) else 0)
-        for key in ("sessions_started", "continued_sessions", "rule_version"):
-            raw = value.get(key, 1 if key == "rule_version" else 0)
+        for key in (
+            "sessions_started",
+            "start_time_count",
+            "end_time_count",
+        ):
+            raw = value.get(key, 0)
             setattr(summary, key, int(raw) if isinstance(raw, int) else 0)
         shortest = value.get("shortest_session_seconds")
         summary.shortest_session_seconds = (
             float(shortest) if isinstance(shortest, (int, float)) else None
         )
-        for key in ("first_active_at", "last_inactive_at"):
-            raw = value.get(key)
-            setattr(summary, key, raw if isinstance(raw, str) else None)
-        summary.complete = value.get("complete") is not False
-        summary.applications = (
-            value.get("applications")
-            if isinstance(value.get("applications"), dict)
-            else {}
-        )
         return summary
+
+    def add_start_time(self, when: datetime) -> None:
+        """Add one actual local session-start time to the circular aggregate."""
+        sine, cosine = _time_components(when)
+        self.start_time_sin += sine
+        self.start_time_cos += cosine
+        self.start_time_count += 1
+
+    def add_end_time(self, when: datetime) -> None:
+        """Add one actual local session-end time to the circular aggregate."""
+        sine, cosine = _time_components(when)
+        self.end_time_sin += sine
+        self.end_time_cos += cosine
+        self.end_time_count += 1
 
 
 @dataclass
@@ -80,29 +91,11 @@ class Session:
 
     started_at: datetime
     last_observed_at: datetime
-    application_id: str | None = None
-    application_label: str | None = None
-    paused_at: datetime | None = None
-    state: str = "active"
-    active_segment_started_at: datetime | None = None
-    active_seconds: float = 0
-    pending_days: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "started_at": self.started_at.isoformat(),
             "last_observed_at": self.last_observed_at.isoformat(),
-            "application_id": self.application_id,
-            "application_label": self.application_label,
-            "paused_at": self.paused_at.isoformat() if self.paused_at else None,
-            "state": self.state,
-            "active_segment_started_at": (
-                self.active_segment_started_at.isoformat()
-                if self.active_segment_started_at
-                else None
-            ),
-            "active_seconds": self.active_seconds,
-            "pending_days": self.pending_days,
         }
 
 
@@ -122,6 +115,45 @@ def split_interval(
         cursor = midnight
     parts.append((cursor.date().isoformat(), cursor, end))
     return parts
+
+
+def attribute_session(
+    start: datetime, end: datetime, policy: str
+) -> list[tuple[str, float]]:
+    """Return local-day duration allocations for one completed logical session."""
+    if end <= start:
+        return []
+    duration = (end - start).total_seconds()
+    if policy == "started_day":
+        return [(start.date().isoformat(), duration)]
+    if policy == "ended_day":
+        return [(end.date().isoformat(), duration)]
+    return [
+        (date, (part_end - part_start).total_seconds())
+        for date, part_start, part_end in split_interval(start, end)
+    ]
+
+
+def average_time_of_day(sine: float, cosine: float, count: int) -> str | None:
+    """Return a circular local-time average in compact ``HH:MM`` form."""
+    if count <= 0 or (sine == 0 and cosine == 0):
+        return None
+    radians = atan2(sine, cosine) % (2 * pi)
+    seconds = round(radians * 86_400 / (2 * pi)) % 86_400
+    hours, remainder = divmod(seconds, 3600)
+    minutes, _ = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}"
+
+
+def _time_components(when: datetime) -> tuple[float, float]:
+    seconds = (
+        when.hour * 3600
+        + when.minute * 60
+        + when.second
+        + when.microsecond / 1_000_000
+    )
+    radians = seconds * 2 * pi / 86_400
+    return sin(radians), cos(radians)
 
 
 def format_duration(seconds: float | int | None) -> str | None:

@@ -5,12 +5,10 @@
     "@alves-dev"
   ],
   "config_flow": true,
-  "dependencies": [
-    "recorder"
-  ],
+  "dependencies": [],
   "documentation": "https://github.com/alves-dev/ha-activity-tracker",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/alves-dev/ha-activity-tracker/issues",
   "requirements": [],
-  "version": "2026.9.0"
+  "version": "2026.9.1"
 }

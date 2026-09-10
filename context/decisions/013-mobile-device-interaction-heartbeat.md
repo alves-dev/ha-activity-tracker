@@ -73,4 +73,4 @@ established unavailable-source policy.
 ## Status
 
 - **Created**: 2026-09-08
-- **Status**: Accepted
+- **Status**: Superseded by Decision 014 on 2026-09-09

@@ -65,4 +65,4 @@ time, restart recovery, and application switches follow the accepted contract.
 ## Status
 
 - **Created**: 2026-08-27
-- **Status**: Accepted
+- **Status**: Superseded by Decision 014 on 2026-09-09

@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-09-09 — Refatoração por regras unificadas entregue
+
+- Entregue o motor único de `start_when` e `stop_when`, com condições de estado,
+  estado por duração e ausência de reportes, combinadas por AND/OR.
+- A criação e edição percorrem template, fonte, condições, comportamento,
+  períodos e métricas; a edição de regra ou política de meia-noite confirma a
+  limpeza do histórico incompatível.
+- Removidos tipos legados, Recorder, migrações, tempo desconhecido, políticas
+  globais de indisponibilidade e documentação associada.
+- Entregues dias históricos fechados, médias circulares de horário, atribuição
+  configurável na meia-noite e o contrato estatístico diário `sum`.
+
+## 2026-09-09 — Planejamento da refatoração por regras unificadas
+
+- Aprovado o plano para substituir tipos de monitor por regras personalizadas de
+  início e término combináveis com AND/OR, com o único template inicial de
+  presença em zona.
+- Confirmado que configurações, entidades e armazenamento da versão anterior
+  serão removidos antes da instalação; não haverá migração de compatibilidade.
+- A reconstrução e reimportação pelo Recorder foram removidas do escopo, pois
+  regras compostas e temporizadas não podem ser reconstituídas com fidelidade.
+- Definido que `Last 1` representa ontem, e não o dia em andamento.
+
 ## 2026-09-08 — Monitor de celular em uso
 
 - Adicionado o tipo de monitor **Celular em uso**, configurado pela seleção de

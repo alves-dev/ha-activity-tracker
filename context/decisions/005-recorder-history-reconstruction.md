@@ -37,5 +37,5 @@ observations.
 ## Status
 
 - **Created**: 2026-08-27 (Phase: Intent)
-- **Status**: Accepted
+- **Status**: Superseded by Decision 016 on 2026-09-09
 - **Note**: Documented from existing implementation

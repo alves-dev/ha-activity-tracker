@@ -1,183 +1,96 @@
-"""Tests for selected monitor sensor values."""
+"""Tests for unified-rule selected report sensors."""
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
+from homeassistant.components.sensor import SensorStateClass
+
 from custom_components.activity_tracker.const import (
     CONF_ENABLED_METRICS,
-    CONF_MONITOR_TYPE,
     CONF_PERIOD_METRICS,
-    CONF_PERIODS,
     DOMAIN,
-    METRIC_AVERAGE_DAILY_DURATION,
-    METRIC_AVERAGE_SESSION_DURATION,
-    METRIC_CURRENT_SESSION_DURATION,
-    METRIC_DAYS_SINCE_LAST_SESSION,
-    METRIC_FIRST_ACTIVITY_TIME,
-    METRIC_LAST_ACTIVITY_TIME,
-    METRIC_LAST_SESSION_DURATION,
-    METRIC_LAST_SESSION_END,
-    METRIC_LAST_SESSION_START,
-    METRIC_LONGEST_SESSION_DURATION,
+    METRIC_AVERAGE_END_TIME,
+    METRIC_AVERAGE_START_TIME,
     METRIC_SESSION_COUNT,
-    METRIC_SHORTEST_SESSION_DURATION,
+    METRIC_TIME_SINCE_LAST_SESSION,
     METRIC_TOTAL_DURATION,
-    METRIC_UNKNOWN_DURATION,
-    METRIC_WEEKDAY_MAX,
     OPT_DURATION_UNIT,
-    OPT_RETENTION_DAYS,
 )
 from custom_components.activity_tracker.models import DailySummary, Session
 from custom_components.activity_tracker.sensor import (
     ActivityMetricSensor,
-    CurrentApplicationSensor,
-    _metric_icon,
-    _metric_name,
     async_setup_entry,
 )
 
 
 def _runtime() -> SimpleNamespace:
     now = datetime.now().astimezone()
-    summary = DailySummary(
-        total_seconds=600,
-        sessions_started=2,
-        longest_session_seconds=400,
-        shortest_session_seconds=100,
-        unknown_seconds=10,
-        first_active_at="08:00:00",
-        last_inactive_at="09:00:00",
-    )
+    summary = DailySummary(total_seconds=7_200, sessions_started=2)
+    summary.add_start_time(now.replace(hour=23, minute=59))
+    summary.add_start_time(now.replace(hour=0, minute=1))
+    summary.add_end_time(now.replace(hour=6, minute=0))
     return SimpleNamespace(
         entry=SimpleNamespace(
-            entry_id="one", title="Test", options={OPT_RETENTION_DAYS: 90}
+            entry_id="one", title="Test", options={OPT_DURATION_UNIT: "h"}
         ),
-        session=Session(now - timedelta(seconds=30), now, "app", "Application"),
+        session=Session(now - timedelta(seconds=30), now),
         last_completed={
-            "started_at": (now - timedelta(minutes=5)).isoformat(),
+            "started_at": (now - timedelta(minutes=10)).isoformat(),
             "ended_at": now.isoformat(),
-            "duration_seconds": 300,
+            "duration_seconds": 600,
             "quality": "exact",
         },
         daily_summaries={now.date().isoformat(): summary},
         signal="test",
+        storage_error=None,
         period_availability=lambda _period: (True, {}),
-        period_summaries=lambda _period: (
-            [summary],
-            now.replace(hour=0, minute=0),
-            now,
-        ),
+        period_summaries=lambda _period: ([summary], now, now),
     )
 
 
-def test_metric_sensors_cover_period_current_and_latest_values() -> None:
+def test_daily_total_uses_sum_statistics_and_new_timing_metrics() -> None:
     runtime = _runtime()
-    expected = {
-        METRIC_TOTAL_DURATION: 600,
-        METRIC_SESSION_COUNT: 2,
-        METRIC_UNKNOWN_DURATION: 10,
-        METRIC_AVERAGE_DAILY_DURATION: 600,
-        METRIC_AVERAGE_SESSION_DURATION: 300,
-        METRIC_LONGEST_SESSION_DURATION: 400,
-        METRIC_SHORTEST_SESSION_DURATION: 100,
-        METRIC_FIRST_ACTIVITY_TIME: "08:00:00",
-        METRIC_LAST_ACTIVITY_TIME: "09:00:00",
-        METRIC_LAST_SESSION_DURATION: 300,
-    }
-    for metric, value in expected.items():
-        sensor = ActivityMetricSensor(runtime, metric, "current_day")
-        assert sensor.native_value == value
-    assert ActivityMetricSensor(runtime, METRIC_LAST_SESSION_START).native_value
-    assert ActivityMetricSensor(runtime, METRIC_LAST_SESSION_END).native_value
-    assert (
-        ActivityMetricSensor(runtime, METRIC_DAYS_SINCE_LAST_SESSION).native_value == 0
-    )
-    assert (
-        ActivityMetricSensor(runtime, METRIC_CURRENT_SESSION_DURATION).native_value
-        >= 30
-    )
+
+    daily = ActivityMetricSensor(runtime, METRIC_TOTAL_DURATION, "current_day")
+    start = ActivityMetricSensor(runtime, METRIC_AVERAGE_START_TIME, "current_day")
+    end = ActivityMetricSensor(runtime, METRIC_AVERAGE_END_TIME, "current_day")
+    age = ActivityMetricSensor(runtime, METRIC_TIME_SINCE_LAST_SESSION)
+
+    assert daily.native_value == 2
+    assert daily.state_class is SensorStateClass.TOTAL_INCREASING
+    assert start.native_value == "00:00"
+    assert end.native_value == "06:00"
+    assert age.native_value is not None
+    assert age.native_unit_of_measurement == "h"
 
 
-def test_metric_availability_weekday_and_application_values() -> None:
-    runtime = _runtime()
-    runtime.period_availability = lambda _period: (
-        False,
-        {"reason": "retention_limit"},
-    )
-    rolling = ActivityMetricSensor(runtime, METRIC_TOTAL_DURATION, "rolling_days:91")
-    assert rolling.available is False
-    assert rolling.extra_state_attributes["reason"] == "retention_limit"
-    weekday = ActivityMetricSensor(runtime, METRIC_WEEKDAY_MAX)
-    assert weekday.native_value == datetime.now().astimezone().strftime("%A").lower()
-    current = CurrentApplicationSensor(runtime)
-    assert current.native_value == "Application"
-    runtime.session = None
-    assert current.native_value is None
-    assert _metric_name(METRIC_TOTAL_DURATION, "rolling_days:35").endswith("Last 35")
-    assert _metric_icon(METRIC_SESSION_COUNT) == "mdi:counter"
-
-
-def test_duration_sensors_convert_only_their_presentation_values() -> None:
-    runtime = _runtime()
-    runtime.entry.options[OPT_DURATION_UNIT] = "h"
-
-    total = ActivityMetricSensor(runtime, METRIC_TOTAL_DURATION, "current_day")
-    latest = ActivityMetricSensor(runtime, METRIC_LAST_SESSION_DURATION)
-
-    assert total.native_value == 600 / 3600
-    assert latest.native_value == 300 / 3600
-    assert total.native_unit_of_measurement == "h"
-    assert total.extra_state_attributes["formatted"] == "10min 0s"
-
-
-async def test_sensor_factory_creates_only_selected_metric_period_pairs() -> None:
+async def test_sensor_factory_creates_only_explicit_unified_pairs() -> None:
     runtime = _runtime()
     entry = SimpleNamespace(
         entry_id="one",
         title="Test",
-        options={OPT_RETENTION_DAYS: 90},
+        options={OPT_DURATION_UNIT: "h"},
         data={
             CONF_PERIOD_METRICS: {
                 "current_day": [METRIC_TOTAL_DURATION],
-                "rolling_days:30": [METRIC_AVERAGE_SESSION_DURATION],
+                "previous_day:1": [METRIC_SESSION_COUNT],
             },
-            CONF_ENABLED_METRICS: [METRIC_LAST_SESSION_DURATION],
+            CONF_ENABLED_METRICS: [METRIC_TIME_SINCE_LAST_SESSION],
         },
     )
     runtime.entry = entry
-    hass = SimpleNamespace(data={DOMAIN: {entry.entry_id: runtime}})
     entities: list[ActivityMetricSensor] = []
 
-    await async_setup_entry(hass, entry, entities.extend)
-
-    assert {(entity._metric, entity._period) for entity in entities} == {
-        (METRIC_TOTAL_DURATION, "current_day"),
-        (METRIC_AVERAGE_SESSION_DURATION, "rolling_days:30"),
-        (METRIC_LAST_SESSION_DURATION, None),
-    }
-
-
-async def test_sensor_factory_keeps_legacy_cartesian_pairs_until_migrated() -> None:
-    runtime = _runtime()
-    entry = SimpleNamespace(
-        entry_id="one",
-        title="Test",
-        options={OPT_RETENTION_DAYS: 90},
-        data={
-            CONF_PERIODS: ["current_day", "rolling_days:30"],
-            CONF_ENABLED_METRICS: [METRIC_TOTAL_DURATION],
-            CONF_MONITOR_TYPE: "entity_state",
-        },
+    await async_setup_entry(
+        SimpleNamespace(data={DOMAIN: {entry.entry_id: runtime}}),
+        entry,
+        entities.extend,
     )
-    runtime.entry = entry
-    hass = SimpleNamespace(data={DOMAIN: {entry.entry_id: runtime}})
-    entities: list[ActivityMetricSensor] = []
-
-    await async_setup_entry(hass, entry, entities.extend)
 
     assert {(entity._metric, entity._period) for entity in entities} == {
         (METRIC_TOTAL_DURATION, "current_day"),
-        (METRIC_TOTAL_DURATION, "rolling_days:30"),
+        (METRIC_SESSION_COUNT, "previous_day:1"),
+        (METRIC_TIME_SINCE_LAST_SESSION, None),
     }
