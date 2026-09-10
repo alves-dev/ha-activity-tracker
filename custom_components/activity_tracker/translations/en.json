@@ -3,6 +3,7 @@
   "config": {"step": {
     "user": {"title": "What would you like to track?", "description": "A monitor observes one activity rule and creates its own Home Assistant device.", "data": {"template": "How would you like to begin?"}},
     "source": {"title": "Choose the activity source", "description": "Name the monitor. Zone presence also needs the tracked person or device and the zone.", "data": {"name": "Name this monitor", "entity_id": "Tracked person or device", "zone_entity_id": "Zone"}},
+    "template_rule": {"title": "Define template rule", "description": "Both templates must render a Home Assistant boolean. Current preview — start: {start_result}; stop: {stop_result}.", "data": {"start_template": "Start when", "stop_template": "Stop when"}},
     "start_condition": {"title": "Manage start conditions", "description": "Saved conditions: {conditions}\\n\\nCurrent snapshot: {status}", "data": {"editor_action": "Action"}},
     "stop_condition": {"title": "Manage stop conditions", "description": "Saved conditions: {conditions}\\n\\nCurrent snapshot: {status}", "data": {"editor_action": "Action"}},
     "condition": {"title": "Add condition", "description": "Define the new condition.", "data": {"entity_id": "Entity", "condition_type": "Condition", "states": "States", "operator": "Match", "for_seconds": "Remain for (seconds)", "next_action": "After adding"}},
@@ -12,10 +13,11 @@
     "period_metrics": {"title": "Choose report sensors", "description": "Select at least one report sensor for {period}.", "data": {"period_metrics": "Report sensors"}},
     "metrics": {"title": "Choose monitor-wide sensors", "description": "These optional sensors do not have a report period.", "data": {"enabled_metrics": "Monitor-wide sensors"}},
     "review": {"title": "Review this monitor", "description": "Create {name} using {source}. It will have {metrics} selected metric type(s) for: {periods}.\\n\\nStart: {start_conditions}\\nStop: {stop_conditions}\\n\\nCurrent snapshot: {status}"}
-  }, "error": {"required": "Provide at least one value before continuing.", "invalid_previous_days": "Use positive whole numbers separated by commas, for example: 1, 2, 7.", "condition_required": "Choose a saved condition to remove.", "conditions_required": "Keep or add at least one condition before continuing."}},
+  }, "error": {"required": "Provide at least one value before continuing.", "invalid_previous_days": "Use positive whole numbers separated by commas, for example: 1, 2, 7.", "condition_required": "Choose a saved condition to remove.", "conditions_required": "Keep or add at least one condition before continuing.", "invalid_template": "Enter a valid Home Assistant template."}},
   "options": {"step": {
     "init": {"title": "Edit monitor", "description": "Edit the template, source, conditions, reports, sensors, or behavior.", "data": {"template": "How would you like to begin?"}},
     "source": {"title": "Choose the activity source", "description": "Name the monitor. Zone presence also needs the tracked person or device and the zone.", "data": {"name": "Name this monitor", "entity_id": "Tracked person or device", "zone_entity_id": "Zone"}},
+    "template_rule": {"title": "Define template rule", "description": "Both templates must render a Home Assistant boolean. Current preview — start: {start_result}; stop: {stop_result}.", "data": {"start_template": "Start when", "stop_template": "Stop when"}},
     "start_condition": {"title": "Manage start conditions", "description": "Saved conditions: {conditions}\\n\\nCurrent snapshot: {status}", "data": {"editor_action": "Action"}},
     "stop_condition": {"title": "Manage stop conditions", "description": "Saved conditions: {conditions}\\n\\nCurrent snapshot: {status}", "data": {"editor_action": "Action"}},
     "condition": {"title": "Add condition", "description": "Define the new condition.", "data": {"entity_id": "Entity", "condition_type": "Condition", "states": "States", "operator": "Match", "for_seconds": "Remain for (seconds)", "next_action": "After adding"}},
@@ -26,9 +28,9 @@
     "metrics": {"title": "Choose monitor-wide sensors", "description": "These optional sensors do not have a report period.", "data": {"enabled_metrics": "Monitor-wide sensors"}},
     "review": {"title": "Review this monitor", "description": "Save {name} using {source}. It will have {metrics} selected metric type(s) for: {periods}.\\n\\nStart: {start_conditions}\\nStop: {stop_conditions}\\n\\nCurrent snapshot: {status}"},
     "confirm_history": {"title": "Confirm history clear", "description": "Changing an activity rule or its midnight policy makes existing summaries incompatible. Confirm to clear retained history before saving.", "data": {"confirm_history_action": "I understand that retained history will be cleared"}}
-  }, "error": {"confirmation_required": "Select the confirmation before continuing.", "condition_required": "Choose a saved condition to remove.", "conditions_required": "Keep or add at least one condition before continuing."}},
+  }, "error": {"confirmation_required": "Select the confirmation before continuing.", "condition_required": "Choose a saved condition to remove.", "conditions_required": "Keep or add at least one condition before continuing.", "invalid_template": "Enter a valid Home Assistant template."}},
   "selector": {
-    "template": {"options": {"zone_presence": "Zone presence", "custom": "Custom rule"}},
+    "template": {"options": {"zone_presence": "Zone presence", "custom": "Custom rule", "template_rule": "Template rule"}},
     "condition_type": {"options": {"state": "Entity state", "report_silence": "No entity reports"}},
     "state_operator": {"options": {"equals": "Matches", "not_equals": "Does not match"}},
     "condition_next_action": {"options": {"and": "Add an AND condition", "or": "Start an OR alternative", "finish": "Finish this expression"}},

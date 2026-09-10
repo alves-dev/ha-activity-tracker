@@ -15,7 +15,9 @@ compact daily summaries independently of Recorder.
 
 ## Features
 
-- A guided **Zone presence** template and a fully custom rule editor.
+- A guided **Zone presence** template, a fully custom rule editor, and a
+  **Template rule** for native Home Assistant expressions over states and
+  attributes.
 - State, state-for-duration, and no-report-for-duration conditions.
 - AND/OR expressions, including `(A and B) or (C and D)`.
 - Explicit `unavailable` and `unknown` stop conditions. A delayed source-health
@@ -60,6 +62,12 @@ session, are optional. Editing a rule or cross-midnight policy asks for explicit
 confirmation before clearing incompatible retained summaries. There is no
 configuration, entity, storage, or Recorder-history migration from prior
 Activity Tracker releases.
+
+Choose **Template rule** when the activity needs an expression beyond the guided
+conditions. Enter a boolean `Start when` and `Stop when` template. For example,
+`{{ state_attr('sensor.battery', 'level') | int > 80 }}` starts a monitor from a
+numeric entity attribute. Home Assistant tracks the entities and attributes the
+template reads, so the activity is re-evaluated when they change.
 
 ## Technical documentation
 

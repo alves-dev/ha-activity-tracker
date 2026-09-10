@@ -7,7 +7,9 @@ from datetime import datetime
 from typing import Any
 
 from homeassistant import config_entries
+from homeassistant.exceptions import TemplateError
 from homeassistant.helpers import selector
+from homeassistant.helpers.template import Template, result_as_boolean
 from homeassistant.util import dt as dt_util
 import voluptuous as vol
 
@@ -36,6 +38,7 @@ from .rules import expression_matches, expression_next_deadline
 
 _TEMPLATE_CUSTOM = "custom"
 _TEMPLATE_ZONE = "zone_presence"
+_TEMPLATE_RULE = "template_rule"
 
 
 class _RuleEditor:
@@ -83,7 +86,7 @@ class _RuleEditor:
                         default=self._data.get(CONF_TEMPLATE, _TEMPLATE_CUSTOM),
                     ): selector.SelectSelector(
                         selector.SelectSelectorConfig(
-                            options=[_TEMPLATE_ZONE, _TEMPLATE_CUSTOM],
+                            options=[_TEMPLATE_ZONE, _TEMPLATE_CUSTOM, _TEMPLATE_RULE],
                             translation_key="template",
                         )
                     )
@@ -113,6 +116,8 @@ class _RuleEditor:
                     "stop": _expression_groups(self._data[CONF_RULE]["stop_when"]),
                 }
                 return await self.async_step_behavior()
+            if template == _TEMPLATE_RULE:
+                return await self.async_step_template_rule()
             return await self.async_step_start_condition()
         return self.async_show_form(
             step_id="source", data_schema=self._source_schema(template)
@@ -147,6 +152,51 @@ class _RuleEditor:
 
     async def async_step_stop_condition(self, user_input=None):
         return await self._async_condition_step("stop", user_input)
+
+    async def async_step_template_rule(
+        self, user_input: dict[str, Any] | None = None
+    ):
+        """Collect complete native-template start and stop expressions."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            start = str(user_input.get("start_template", "")).strip()
+            stop = str(user_input.get("stop_template", "")).strip()
+            if not _is_valid_template(self.hass, start):
+                errors["start_template"] = "invalid_template"
+            if not _is_valid_template(self.hass, stop):
+                errors["stop_template"] = "invalid_template"
+            if not errors:
+                self._data[CONF_RULE] = {
+                    "start_when": {"type": "template", "value_template": start},
+                    "stop_when": {"type": "template", "value_template": stop},
+                }
+                self._conditions = {
+                    "start": _expression_groups(self._data[CONF_RULE]["start_when"]),
+                    "stop": _expression_groups(self._data[CONF_RULE]["stop_when"]),
+                }
+                return await self.async_step_behavior()
+        rule = self._data.get(CONF_RULE, {})
+        rule = rule if isinstance(rule, Mapping) else {}
+        start = _template_value(rule.get("start_when"))
+        stop = _template_value(rule.get("stop_when"))
+        return self.async_show_form(
+            step_id="template_rule",
+            errors=errors,
+            description_placeholders={
+                "start_result": _template_preview(self.hass, start),
+                "stop_result": _template_preview(self.hass, stop),
+            },
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        "start_template", default=start
+                    ): selector.TemplateSelector(),
+                    vol.Required(
+                        "stop_template", default=stop
+                    ): selector.TemplateSelector(),
+                }
+            ),
+        )
 
     async def _async_condition_step(
         self, phase: str, user_input: dict[str, Any] | None
@@ -639,6 +689,9 @@ def _condition_summary(condition: Mapping[str, Any]) -> str:
             f"{condition.get('entity_id')} silent for "
             f"{condition.get('for_seconds', 0)}s"
         )
+    if condition.get("type") == "template":
+        value = str(condition.get("value_template", "")).replace("\n", " ")
+        return f"template: {value[:80]}"
     comparison = "is not" if condition.get("operator") == "not_equals" else "is"
     duration = (
         f" for {condition['for_seconds']}s" if condition.get("for_seconds") else ""
@@ -662,6 +715,10 @@ def _conditions_status(hass, groups: list[list[dict[str, Any]]], phase: str) -> 
 
 def _rule_status(hass, rule: Mapping[str, Any]) -> str:
     """Describe both saved expressions against one current-state snapshot."""
+    if _template_value(rule.get("start_when")) or _template_value(
+        rule.get("stop_when")
+    ):
+        return "Template results are evaluated by Home Assistant at runtime."
     start_groups = _expression_groups(rule.get("start_when", {}))
     stop_groups = _expression_groups(rule.get("stop_when", {}))
     return (
@@ -779,3 +836,30 @@ def _zone_rule(entity_id: str, zone_state: str) -> dict[str, Any]:
             "operator": "not_equals",
         },
     }
+
+
+def _template_value(expression: object) -> str:
+    if not isinstance(expression, Mapping) or expression.get("type") != "template":
+        return ""
+    value = expression.get("value_template")
+    return value if isinstance(value, str) else ""
+
+
+def _is_valid_template(hass, value: str) -> bool:
+    if not value:
+        return False
+    try:
+        Template(value, hass).ensure_valid()
+    except TemplateError:
+        return False
+    return True
+
+
+def _template_preview(hass, value: str) -> str:
+    if not value:
+        return "No template yet."
+    try:
+        result = Template(value, hass).async_render()
+    except TemplateError:
+        return "Invalid template."
+    return f"{result} ({'true' if result_as_boolean(result) else 'false'})"

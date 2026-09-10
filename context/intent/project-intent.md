@@ -14,10 +14,11 @@ Home Assistant entities.
 
 ## Current State
 
-The custom integration is active at version 2026.9.0 and supports UI-only
+The custom integration is active at version 2026.9.1 and supports UI-only
 monitor setup, persistent daily summaries, configurable report periods and
-metrics, and complete monitor editing. It has a zone-presence template and a
-generic rule editor with state, state-duration, and report-silence conditions.
+metrics, and complete monitor editing. It has zone-presence and native-template
+rule templates, plus a generic rule editor with state, state-duration, and
+report-silence conditions.
 
 The integration is localized in English and Brazilian Portuguese. It is distributed as a HACS custom integration and requires Home Assistant 2026.8 or newer.
 

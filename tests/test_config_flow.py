@@ -166,6 +166,26 @@ async def test_flow_collects_closed_day_periods_and_metric_pairs() -> None:
     assert _previous_day_periods("1, 2") == ["previous_day:1", "previous_day:2"]
 
 
+async def test_template_rule_flow_collects_start_and_stop_templates() -> None:
+    flow = _flow()
+
+    assert (
+        await flow.async_step_user({"template": "template_rule"})
+    )["step_id"] == "source"
+    assert (await flow.async_step_source({"name": "High battery"}))[
+        "step_id"
+    ] == "template_rule"
+    behavior = await flow.async_step_template_rule(
+        {"start_template": "true", "stop_template": "false"}
+    )
+
+    assert behavior["step_id"] == "behavior"
+    assert flow._data[CONF_RULE] == {
+        "start_when": {"type": "template", "value_template": "true"},
+        "stop_when": {"type": "template", "value_template": "false"},
+    }
+
+
 async def test_options_rule_change_requires_history_clear_confirmation() -> None:
     entry = SimpleNamespace(
         entry_id="monitor",

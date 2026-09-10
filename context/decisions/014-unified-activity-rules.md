@@ -16,7 +16,8 @@ conditions:
 
 - an entity state matching or not matching a finite set of state values;
 - a matching state held continuously for a configured duration; and
-- an entity that has not reported for a configured duration.
+- an entity that has not reported for a configured duration; and
+- a native Home Assistant template whose tracked result is true.
 
 The runtime subscribes to every entity referenced by the rule and schedules the
 next elapsed-time deadline. It evaluates the expressions from observed current
@@ -31,9 +32,10 @@ counted as activity.
 
 Unavailable and unknown are ordinary explicit stop-condition values; there is no
 global unavailable policy, unavailable tolerance, merge-gap policy, or
-unknown-duration accounting. A **zone presence** template only prepopulates a
-normal rule using the selected tracker and zone. All other activities use the
-custom-rule editor in this release.
+unknown-duration accounting. A **zone presence** template prepopulates a normal
+rule using the selected tracker and zone. The later **template rule** delivery
+adds complete native-template start and stop expressions as defined in
+Decision 018; other activities use the custom-rule editor.
 
 ## Rationale
 
@@ -67,6 +69,7 @@ Decisions 003, 006, and 013.
 - [Decision: Mobile Device Interaction Heartbeat](013-mobile-device-interaction-heartbeat.md)
 - [Pattern: Unified Rule Evaluation and Exact Deadlines](../knowledge/patterns/unified-rule-evaluation.md)
 - [Decision: Native Rule Inspection and Control](017-rule-editor-inspection-and-control.md)
+- [Decision: Template Activity Rules](018-template-activity-rules.md)
 - [Unified-rule refactor plan](../evolution/2026-09-09-unified-rule-refactor-implementation-plan.md)
 
 ## Status

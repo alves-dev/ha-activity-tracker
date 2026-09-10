@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-09-10 — Regras de atividade por template
+
+- Adicionado o template **Regra por template**, com expressões booleanas
+  independentes para iniciar e terminar uma atividade.
+- As expressões usam o mecanismo nativo de templates do Home Assistant; assim,
+  alterações em entidades e atributos consultados reavaliam a atividade sem
+  exigir entidades auxiliares ou polling.
+- Documentado o plano da futura tela lateral **Activity Rules**, com árvore
+  visual AND/OR, inspetor de componentes e estados ao vivo. O painel ainda não
+  faz parte desta entrega.
+
 ## 2026-09-10 — Inspeção e controle de regras durante a edição
 
 - A edição de uma regra personalizada agora começa pelas condições de início e

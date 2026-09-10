@@ -13,6 +13,7 @@ GROUP_ALL = "all"
 GROUP_ANY = "any"
 CONDITION_STATE = "state"
 CONDITION_REPORT_SILENCE = "report_silence"
+CONDITION_TEMPLATE = "template"
 
 
 def referenced_entity_ids(expression: Mapping[str, Any]) -> set[str]:
@@ -25,18 +26,36 @@ def referenced_entity_ids(expression: Mapping[str, Any]) -> set[str]:
     return {entity_id} if isinstance(entity_id, str) else set()
 
 
+def template_values(expression: Mapping[str, Any]) -> set[str]:
+    """Return every valid Home Assistant template used by an expression."""
+    children = _group_children(expression)
+    if children is not None:
+        return set().union(*(template_values(child) for child in children))
+    value = expression.get("value_template")
+    if expression.get("type") != CONDITION_TEMPLATE or not isinstance(value, str):
+        return set()
+    return {value}
+
+
 def expression_matches(
-    expression: Mapping[str, Any], states: Mapping[str, Any], now: datetime
+    expression: Mapping[str, Any],
+    states: Mapping[str, Any],
+    now: datetime,
+    template_results: Mapping[str, bool] | None = None,
 ) -> bool:
     """Return whether an expression is true from the observed source states."""
     children = _group_children(expression)
     if children is not None:
         if expression.get("operator") == GROUP_ALL:
             return bool(children) and all(
-                expression_matches(child, states, now) for child in children
+                expression_matches(child, states, now, template_results)
+                for child in children
             )
-        return any(expression_matches(child, states, now) for child in children)
-    return _condition_matches(expression, states, now)
+        return any(
+            expression_matches(child, states, now, template_results)
+            for child in children
+        )
+    return _condition_matches(expression, states, now, template_results)
 
 
 def expression_next_deadline(  # noqa: PLR0911
@@ -86,8 +105,14 @@ def _group_children(expression: Mapping[str, Any]) -> list[Mapping[str, Any]] | 
 
 
 def _condition_matches(  # noqa: PLR0911
-    condition: Mapping[str, Any], states: Mapping[str, Any], now: datetime
+    condition: Mapping[str, Any],
+    states: Mapping[str, Any],
+    now: datetime,
+    template_results: Mapping[str, bool] | None = None,
 ) -> bool:
+    if condition.get("type") == CONDITION_TEMPLATE:
+        value = condition.get("value_template")
+        return isinstance(value, str) and bool((template_results or {}).get(value))
     entity_id = condition.get("entity_id")
     if not isinstance(entity_id, str):
         return False

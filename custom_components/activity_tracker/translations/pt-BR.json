@@ -3,6 +3,7 @@
   "config": {"step": {
     "user": {"title": "O que você quer rastrear?", "description": "Um monitor observa uma regra de atividade e cria seu próprio dispositivo no Home Assistant.", "data": {"template": "Como você quer começar?"}},
     "source": {"title": "Escolha a fonte da atividade", "description": "Dê um nome ao monitor. Presença em zona também precisa da pessoa ou dispositivo rastreado e da zona.", "data": {"name": "Nome deste monitor", "entity_id": "Pessoa ou dispositivo rastreado", "zone_entity_id": "Zona"}},
+    "template_rule": {"title": "Defina a regra por template", "description": "Os dois templates devem produzir um booleano do Home Assistant. Prévia atual — início: {start_result}; término: {stop_result}.", "data": {"start_template": "Iniciar quando", "stop_template": "Terminar quando"}},
     "start_condition": {"title": "Gerenciar condições de início", "description": "Condições salvas: {conditions}\\n\\nFotografia atual: {status}", "data": {"editor_action": "Ação"}},
     "stop_condition": {"title": "Gerenciar condições de término", "description": "Condições salvas: {conditions}\\n\\nFotografia atual: {status}", "data": {"editor_action": "Ação"}},
     "condition": {"title": "Adicionar condição", "description": "Defina a nova condição.", "data": {"entity_id": "Entidade", "condition_type": "Condição", "states": "Estados", "operator": "Comparação", "for_seconds": "Permanecer por (segundos)", "next_action": "Após adicionar"}},
@@ -12,10 +13,11 @@
     "period_metrics": {"title": "Escolha os sensores de relatório", "description": "Escolha pelo menos um sensor de relatório para {period}.", "data": {"period_metrics": "Sensores de relatório"}},
     "metrics": {"title": "Escolha os sensores gerais", "description": "Estes sensores opcionais não têm período de relatório.", "data": {"enabled_metrics": "Sensores gerais"}},
     "review": {"title": "Revise este monitor", "description": "Criar {name} usando {source}. Ele terá {metrics} tipo(s) de métrica para: {periods}.\\n\\nInício: {start_conditions}\\nTérmino: {stop_conditions}\\n\\nFotografia atual: {status}"}
-  }, "error": {"required": "Informe pelo menos um valor antes de continuar.", "invalid_previous_days": "Use números inteiros positivos separados por vírgulas, por exemplo: 1, 2, 7.", "condition_required": "Escolha uma condição salva para remover.", "conditions_required": "Mantenha ou adicione pelo menos uma condição antes de continuar."}},
+  }, "error": {"required": "Informe pelo menos um valor antes de continuar.", "invalid_previous_days": "Use números inteiros positivos separados por vírgulas, por exemplo: 1, 2, 7.", "condition_required": "Escolha uma condição salva para remover.", "conditions_required": "Mantenha ou adicione pelo menos uma condição antes de continuar.", "invalid_template": "Informe um template válido do Home Assistant."}},
   "options": {"step": {
     "init": {"title": "Editar monitor", "description": "Edite o modelo, fonte, condições, relatórios, sensores ou comportamento.", "data": {"template": "Como você quer começar?"}},
     "source": {"title": "Escolha a fonte da atividade", "description": "Dê um nome ao monitor. Presença em zona também precisa da pessoa ou dispositivo rastreado e da zona.", "data": {"name": "Nome deste monitor", "entity_id": "Pessoa ou dispositivo rastreado", "zone_entity_id": "Zona"}},
+    "template_rule": {"title": "Defina a regra por template", "description": "Os dois templates devem produzir um booleano do Home Assistant. Prévia atual — início: {start_result}; término: {stop_result}.", "data": {"start_template": "Iniciar quando", "stop_template": "Terminar quando"}},
     "start_condition": {"title": "Gerenciar condições de início", "description": "Condições salvas: {conditions}\\n\\nFotografia atual: {status}", "data": {"editor_action": "Ação"}},
     "stop_condition": {"title": "Gerenciar condições de término", "description": "Condições salvas: {conditions}\\n\\nFotografia atual: {status}", "data": {"editor_action": "Ação"}},
     "condition": {"title": "Adicionar condição", "description": "Defina a nova condição.", "data": {"entity_id": "Entidade", "condition_type": "Condição", "states": "Estados", "operator": "Comparação", "for_seconds": "Permanecer por (segundos)", "next_action": "Após adicionar"}},
@@ -26,9 +28,9 @@
     "metrics": {"title": "Escolha os sensores gerais", "description": "Estes sensores opcionais não têm período de relatório.", "data": {"enabled_metrics": "Sensores gerais"}},
     "review": {"title": "Revise este monitor", "description": "Salvar {name} usando {source}. Ele terá {metrics} tipo(s) de métrica para: {periods}.\\n\\nInício: {start_conditions}\\nTérmino: {stop_conditions}\\n\\nFotografia atual: {status}"},
     "confirm_history": {"title": "Confirme a limpeza do histórico", "description": "Alterar uma regra de atividade ou a política de meia-noite torna os resumos existentes incompatíveis. Confirme para limpar o histórico retido antes de salvar.", "data": {"confirm_history_action": "Entendo que o histórico retido será limpo"}}
-  }, "error": {"confirmation_required": "Selecione a confirmação antes de continuar.", "condition_required": "Escolha uma condição salva para remover.", "conditions_required": "Mantenha ou adicione pelo menos uma condição antes de continuar."}},
+  }, "error": {"confirmation_required": "Selecione a confirmação antes de continuar.", "condition_required": "Escolha uma condição salva para remover.", "conditions_required": "Mantenha ou adicione pelo menos uma condição antes de continuar.", "invalid_template": "Informe um template válido do Home Assistant."}},
   "selector": {
-    "template": {"options": {"zone_presence": "Presença em zona", "custom": "Regra personalizada"}},
+    "template": {"options": {"zone_presence": "Presença em zona", "custom": "Regra personalizada", "template_rule": "Regra por template"}},
     "condition_type": {"options": {"state": "Estado da entidade", "report_silence": "Sem relatórios da entidade"}},
     "state_operator": {"options": {"equals": "Corresponde", "not_equals": "Não corresponde"}},
     "condition_next_action": {"options": {"and": "Adicionar uma condição E", "or": "Iniciar alternativa OU", "finish": "Concluir esta expressão"}},

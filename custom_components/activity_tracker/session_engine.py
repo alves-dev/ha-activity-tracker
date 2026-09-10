@@ -38,17 +38,25 @@ class UnifiedSessionEngine:
         return self.started_at is not None
 
     def process(
-        self, states: Mapping[str, Any], now: datetime
+        self,
+        states: Mapping[str, Any],
+        now: datetime,
+        template_results: Mapping[str, bool] | None = None,
     ) -> SessionTransition | None:
         """Evaluate one observed state snapshot and return at most one transition."""
         if self.started_at is not None:
-            if expression_matches(self._stop_when, states, now):
-                ended_at = _unavailable_anchor(self._stop_when, states, now) or now
+            if expression_matches(self._stop_when, states, now, template_results):
+                ended_at = (
+                    _unavailable_anchor(
+                        self._stop_when, states, now, template_results
+                    )
+                    or now
+                )
                 ended_at = max(ended_at, self.started_at)
                 self.started_at = None
                 return SessionTransition("stopped", now, ended_at)
             return None
-        if expression_matches(self._start_when, states, now):
+        if expression_matches(self._start_when, states, now, template_results):
             self.started_at = now
             return SessionTransition("started", now)
         return None
@@ -75,7 +83,10 @@ def _expression(value: object) -> Mapping[str, Any]:
 
 
 def _unavailable_anchor(
-    expression: Mapping[str, Any], states: Mapping[str, Any], now: datetime
+    expression: Mapping[str, Any],
+    states: Mapping[str, Any],
+    now: datetime,
+    template_results: Mapping[str, bool] | None = None,
 ) -> datetime | None:
     """Return an unavailable condition's first observation when it ended a rule."""
     children = expression.get("conditions")
@@ -84,7 +95,10 @@ def _unavailable_anchor(
             anchor
             for child in children
             if isinstance(child, Mapping)
-            and (anchor := _unavailable_anchor(child, states, now)) is not None
+            and (
+                anchor := _unavailable_anchor(child, states, now, template_results)
+            )
+            is not None
         ]
         return min(anchors, default=None)
     values = expression.get("states")
@@ -94,7 +108,7 @@ def _unavailable_anchor(
         or not isinstance(values, list)
         or not {STATE_UNAVAILABLE, STATE_UNKNOWN}.intersection(values)
         or not isinstance(entity_id, str)
-        or not expression_matches(expression, states, now)
+        or not expression_matches(expression, states, now, template_results)
     ):
         return None
     state = states.get(entity_id)

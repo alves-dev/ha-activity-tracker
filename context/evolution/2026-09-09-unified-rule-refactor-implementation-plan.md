@@ -36,8 +36,9 @@ existing monitors before installing this release.
   state, elapsed time, and unchanged reports that Recorder history cannot
   reconstruct faithfully. Retained history begins when the new monitor runs.
 - Templates for phone use, foreground applications, areas, or generic entity
-  states. These may be expressed through custom rules in a later delivery after
-  their UX and historical-reconstruction contracts are designed.
+  states. This non-goal was superseded for complete start/stop template rules
+  by [Decision 018](../decisions/018-template-activity-rules.md) on 2026-09-10;
+  mixing templates within the guided AND/OR editor remains deferred.
 - A permanent detailed session archive or automatic correction of existing Home
   Assistant long-term statistics.
 

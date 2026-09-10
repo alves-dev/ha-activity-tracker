@@ -16,6 +16,8 @@ template, source, rule conditions, behavior, report periods, and sensors.
   explicit confirmation.
 - [x] Rule editing starts from the monitor's saved conditions and exposes their
   current evaluation snapshot before the user changes them.
+- [x] Setup and editing validate template-rule start and stop expressions before
+  the monitor is saved.
 
 ## Related
 
@@ -23,9 +25,10 @@ template, source, rule conditions, behavior, report periods, and sensors.
 - [Decision: Unified Activity Rules](../decisions/014-unified-activity-rules.md)
 - [Decision: Unified Rule Data Reset](../decisions/016-unified-rule-data-reset-and-no-recorder-import.md)
 - [Decision: Native Rule Inspection and Control](../decisions/017-rule-editor-inspection-and-control.md)
+- [Decision: Template Activity Rules](../decisions/018-template-activity-rules.md)
 - [Pattern: Multi-Step Configuration Flow](../knowledge/patterns/multi-step-configuration-flow.md)
 
 ## Status
 
 - **Created**: 2026-08-27
-- **Status**: Active; delivered on 2026-09-09
+- **Status**: Active; template rules delivered on 2026-09-10

@@ -10,11 +10,14 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, State, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import (
+    TrackTemplate,
     async_track_point_in_time,
     async_track_state_change_event,
     async_track_state_report_event,
+    async_track_template_result,
     async_track_time_interval,
 )
+from homeassistant.helpers.template import Template, result_as_boolean
 from homeassistant.util import dt as dt_util
 
 from .accounting import commit_session
@@ -31,7 +34,7 @@ from .const import (
     update_signal,
 )
 from .models import DailySummary, Session
-from .rules import referenced_entity_ids
+from .rules import referenced_entity_ids, template_values
 from .session_engine import UnifiedSessionEngine
 from .storage import ActivityTrackerStorage
 
@@ -44,6 +47,7 @@ class ActivityTrackerRuntime:
         self._storage = ActivityTrackerStorage(hass, entry.entry_id)
         self._data: dict[str, Any] = {"daily_summaries": {}}
         self._states: dict[str, State] = {}
+        self._template_results: dict[str, bool] = {}
         self._session: Session | None = None
         self._engine = UnifiedSessionEngine(self._rule)
         self._unsubscribers: list[callback] = []
@@ -105,6 +109,7 @@ class ActivityTrackerRuntime:
                     ),
                 )
             )
+        self._async_track_templates()
         self._unsubscribers.append(
             async_track_time_interval(
                 self.hass, self._async_minute_tick, timedelta(minutes=1)
@@ -153,6 +158,34 @@ class ActivityTrackerRuntime:
         if isinstance(state, State):
             await self.async_process_state(state, dt_util.now())
 
+    def _async_track_templates(self) -> None:
+        """Track native templates and let Home Assistant discover dependencies."""
+        values = template_values(self._rule.get("start_when", {}))
+        values |= template_values(self._rule.get("stop_when", {}))
+        if not values:
+            return
+        tracker = async_track_template_result(
+            self.hass,
+            [TrackTemplate(Template(value, self.hass), None) for value in values],
+            self._async_template_result,
+        )
+        self._unsubscribers.append(tracker.async_remove)
+
+    @callback
+    def _async_template_result(self, _event, updates) -> None:
+        """Store changed boolean results and evaluate the same session engine."""
+        for update in updates:
+            self._template_results[update.template.template] = result_as_boolean(
+                update.result
+            )
+        self.hass.async_create_task(self._async_process_template_results(dt_util.now()))
+
+    async def _async_process_template_results(self, now: datetime) -> None:
+        async with self._mutation_lock:
+            if self._session is not None:
+                self._session.last_observed_at = now
+            await self._async_evaluate(now)
+
     async def _async_deadline(self, now: datetime) -> None:
         async with self._mutation_lock:
             await self._async_evaluate(now)
@@ -168,7 +201,7 @@ class ActivityTrackerRuntime:
     async def _async_evaluate(self, now: datetime) -> None:
         if self._storage_error is not None:
             return
-        transition = self._engine.process(self._states, now)
+        transition = self._engine.process(self._states, now, self._template_results)
         if transition and transition.action == "started":
             self._session = Session(now, now)
             await self._async_save()

@@ -8,9 +8,11 @@ does not migrate previous storage, config entries, entity identifiers, statistic
 or Recorder history.
 
 Rules are persisted as independent `start_when` and `stop_when` expressions.
-Each expression is an `all` or `any` tree of state or report-silence leaves. The
-runtime subscribes to referenced entities and schedules the earliest eligible
-deadline; it never polls to make accounting decisions.
+Each expression is an `all` or `any` tree of state, report-silence, or template
+leaves. The runtime subscribes to referenced entities and schedules the earliest
+eligible deadline; it never polls to make accounting decisions. For a template
+leaf, Home Assistant's template tracker discovers the referenced entities and
+attributes dynamically and re-evaluates the rule when its boolean result changes.
 
 Completed sessions are attributed according to the monitor's cross-midnight
 policy. `started_day` and `ended_day` assign the full duration and one session to

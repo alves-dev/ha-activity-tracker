@@ -11,10 +11,14 @@ deadline rather than polling the rule.
 Use this pattern for every unified monitor start/stop decision and for any
 future source-health condition that depends on state duration or report silence.
 
+Template leaves use Home Assistant's template-result tracker to turn a
+template's current boolean result into evaluator input; they do not attempt to
+extract entity IDs or introduce a polling deadline.
+
 ## Pattern
 
-Persist expressions as `all` or `any` groups with state and report-silence leaf
-conditions. Keep expression evaluation independent of Home Assistant event
+Persist expressions as `all` or `any` groups with state, report-silence, and
+template leaf conditions. Keep expression evaluation independent of Home Assistant event
 subscription and session accounting. Given a state snapshot and aware `now`, the
 evaluator reports whether the expression matches and the earliest future time a
 currently eligible leaf can become true.
@@ -37,6 +41,7 @@ source-health failure.
 
 - [Decision: Unified Activity Rules and Source Health](../../decisions/014-unified-activity-rules.md)
 - [Feature: Flexible Activity Monitoring](../../intent/feature-flexible-activity-monitoring.md)
+- [Decision: Template Activity Rules](../../decisions/018-template-activity-rules.md)
 
 ## Status
 
