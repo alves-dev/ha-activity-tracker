@@ -36,7 +36,7 @@ _WEBSOCKET_SUBSCRIBE = f"{DOMAIN}/rules/subscribe"
 _WEBSOCKET_EDITOR_OPEN = f"{DOMAIN}/editor/open"
 _WEBSOCKET_EDITOR_VALIDATE = f"{DOMAIN}/editor/validate"
 _WEBSOCKET_EDITOR_APPLY = f"{DOMAIN}/editor/apply"
-_PANEL_ASSET_REVISION = "7"
+_PANEL_ASSET_REVISION = "8"
 
 
 async def async_register_panel(hass: HomeAssistant) -> None:
