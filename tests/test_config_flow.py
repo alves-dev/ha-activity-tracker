@@ -5,9 +5,13 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+from homeassistant.util import dt as dt_util
+
 from custom_components.activity_tracker.config_flow import (
     ActivityTrackerConfigFlow,
     ActivityTrackerOptionsFlow,
+    _condition_choices,
+    _conditions_status,
     _expression,
     _previous_day_periods,
 )
@@ -34,8 +38,11 @@ async def test_custom_flow_finishes_without_an_extra_condition() -> None:
     assert (await flow.async_step_source({"name": "Sleep"}))[
         "step_id"
     ] == "start_condition"
+    assert (await flow.async_step_start_condition({"editor_action": "add"}))[
+        "step_id"
+    ] == "condition"
     assert (
-        await flow.async_step_start_condition(
+        await flow.async_step_condition(
             {
                 "entity_id": "binary_sensor.bed",
                 "condition_type": "state",
@@ -46,8 +53,9 @@ async def test_custom_flow_finishes_without_an_extra_condition() -> None:
             }
         )
     )["description_placeholders"]["conditions"] == "(binary_sensor.bed is on)"
+    await flow.async_step_start_condition({"editor_action": "add"})
     assert (
-        await flow.async_step_start_condition(
+        await flow.async_step_condition(
             {
                 "entity_id": "person.igor",
                 "condition_type": "state",
@@ -60,8 +68,9 @@ async def test_custom_flow_finishes_without_an_extra_condition() -> None:
     )["description_placeholders"][
         "conditions"
     ] == "(binary_sensor.bed is on AND person.igor is home)"
+    await flow.async_step_start_condition({"editor_action": "add"})
     assert (
-        await flow.async_step_start_condition(
+        await flow.async_step_condition(
             {
                 "entity_id": "person.jade",
                 "condition_type": "state",
@@ -72,7 +81,10 @@ async def test_custom_flow_finishes_without_an_extra_condition() -> None:
             }
         )
     )["step_id"] == "stop_condition"
-    behavior = await flow.async_step_stop_condition(
+    assert (await flow.async_step_stop_condition({"editor_action": "add"}))[
+        "step_id"
+    ] == "condition"
+    behavior = await flow.async_step_condition(
         {
             "entity_id": "binary_sensor.bed",
             "condition_type": "state",
@@ -198,3 +210,90 @@ async def test_options_rule_change_requires_history_clear_confirmation() -> None
     await flow.async_step_confirm_history({"confirm_history_action": True})
     runtime.async_clear_history.assert_awaited_once()
     assert updates[0]["title"] == "New"
+
+
+async def test_options_preserves_conditions_and_shows_current_snapshot() -> None:
+    """Editing an activity must begin with its saved rule, not a blank editor."""
+    rule = {
+        "start_when": _expression(
+            [
+                [
+                    {
+                        "type": "state",
+                        "entity_id": "binary_sensor.bed",
+                        "states": ["on"],
+                        "operator": "equals",
+                        "for_seconds": 0,
+                    }
+                ]
+            ]
+        ),
+        "stop_when": _expression(
+            [
+                [
+                    {
+                        "type": "state",
+                        "entity_id": "binary_sensor.bed",
+                        "states": ["off"],
+                        "operator": "equals",
+                        "for_seconds": 0,
+                    }
+                ]
+            ]
+        ),
+    }
+    state = SimpleNamespace(state="on", last_changed=dt_util.utcnow())
+    flow = ActivityTrackerOptionsFlow()
+    flow.hass = SimpleNamespace(states=SimpleNamespace(get=lambda _: state))
+    flow.async_show_form = lambda **kwargs: kwargs
+    flow._start_editor(
+        {
+            "template": "custom",
+            "name": "Sleep",
+            CONF_RULE: rule,
+            CONF_PERIOD_METRICS: {"current_day": ["total_duration"]},
+            CONF_ENABLED_METRICS: [],
+        }
+    )
+
+    form = await flow.async_step_source({"name": "Sleep"})
+
+    assert form["description_placeholders"]["conditions"] == (
+        "(binary_sensor.bed is on)"
+    )
+    assert "Start: ✓ matched" in form["description_placeholders"]["status"]
+    assert "current on" in form["description_placeholders"]["status"]
+
+    removing = await flow.async_step_start_condition({"editor_action": "remove"})
+    assert removing["step_id"] == "remove_condition"
+    removed = await flow.async_step_remove_condition(
+        {"condition_id": _condition_choices(flow._conditions["start"])[0]}
+    )
+
+    assert removed["description_placeholders"]["conditions"] == "No conditions yet."
+
+
+def test_condition_snapshot_shows_a_pending_report_silence_deadline() -> None:
+    state = SimpleNamespace(
+        state="on",
+        last_changed=dt_util.utcnow(),
+        last_reported=dt_util.utcnow(),
+    )
+
+    status = _conditions_status(
+        SimpleNamespace(states=SimpleNamespace(get=lambda _: state)),
+        [
+            [
+                {
+                    "type": "report_silence",
+                    "entity_id": "sensor.phone",
+                    "for_seconds": 300,
+                }
+            ]
+        ],
+        "stop",
+    )
+
+    assert "Stop: ✕ not matched" in status
+    assert "sensor.phone: current on" in status
+    assert "remaining" in status

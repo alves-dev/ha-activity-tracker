@@ -14,12 +14,15 @@ template, source, rule conditions, behavior, report periods, and sensors.
 - [x] Editing traverses the complete monitor contract.
 - [x] Editing a rule or midnight policy clears incompatible summaries only after
   explicit confirmation.
+- [x] Rule editing starts from the monitor's saved conditions and exposes their
+  current evaluation snapshot before the user changes them.
 
 ## Related
 
 - [Project Intent](project-intent.md)
 - [Decision: Unified Activity Rules](../decisions/014-unified-activity-rules.md)
 - [Decision: Unified Rule Data Reset](../decisions/016-unified-rule-data-reset-and-no-recorder-import.md)
+- [Decision: Native Rule Inspection and Control](../decisions/017-rule-editor-inspection-and-control.md)
 - [Pattern: Multi-Step Configuration Flow](../knowledge/patterns/multi-step-configuration-flow.md)
 
 ## Status

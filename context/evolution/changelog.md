@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-09-10 — Inspeção e controle de regras durante a edição
+
+- A edição de uma regra personalizada agora começa pelas condições de início e
+  término já salvas, permitindo adicioná-las ou removê-las sem reconstruir a
+  atividade às cegas.
+- Cada tela de condição mostra uma fotografia do estado atual: resultado da
+  expressão, estado observado e prazo restante para condições temporizadas ou
+  de ausência de reportes.
+- Foi mantida a edição pelo fluxo nativo do Home Assistant; uma página lateral
+  em tempo real foi deliberadamente adiada para uma necessidade futura de
+  controle entre vários monitores.
+
 ## 2026-09-09 — Refatoração por regras unificadas entregue
 
 - Entregue o motor único de `start_when` e `stop_when`, com condições de estado,

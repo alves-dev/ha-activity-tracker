@@ -15,11 +15,15 @@ whether it is active now.
   observation after confirmation at the requested deadline.
 - [x] Zone presence is the only guided template; other activities use custom
   rules.
+- [x] While editing a custom rule, users can inspect its saved start and stop
+  conditions, add or remove conditions, and see a current-state snapshot of
+  each condition and expression.
 
 ## Related
 
 - [Project Intent](project-intent.md)
 - [Decision: Unified Activity Rules](../decisions/014-unified-activity-rules.md)
+- [Decision: Native Rule Inspection and Control](../decisions/017-rule-editor-inspection-and-control.md)
 - [Pattern: Unified Rule Evaluation](../knowledge/patterns/unified-rule-evaluation.md)
 
 ## Status

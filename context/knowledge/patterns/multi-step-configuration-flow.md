@@ -19,6 +19,11 @@ entry is created or updated. When an edit can destroy or replace persisted
 history, add a separate unselected confirmation step and perform the mutation
 only after it succeeds.
 
+When the flow edits an existing serialized collection, hydrate the local editing
+state from that collection before rendering the first form. Show the saved
+items before asking for changes; never reset them merely because the user
+revisited an earlier step.
+
 ## Example
 
 ```python
@@ -45,6 +50,7 @@ async def async_step_metrics(self, user_input: dict[str, Any] | None = None):
 - [Feature: Guided Monitor Management](../../intent/feature-guided-monitor-management.md)
 - [Decision: Administrative History Actions and Redacted Diagnostics](../../decisions/010-administrative-history-and-diagnostics.md)
 - [Decision: Period-Specific Report Sensor Selection](../../decisions/012-period-specific-report-sensor-selection.md)
+- [Decision: Native Rule Inspection and Control](../../decisions/017-rule-editor-inspection-and-control.md)
 
 ## Status
 

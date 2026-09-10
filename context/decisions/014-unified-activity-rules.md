@@ -66,6 +66,7 @@ Decisions 003, 006, and 013.
 - [Decision: Interruption and Session State Machine](006-interruption-and-session-state-machine.md)
 - [Decision: Mobile Device Interaction Heartbeat](013-mobile-device-interaction-heartbeat.md)
 - [Pattern: Unified Rule Evaluation and Exact Deadlines](../knowledge/patterns/unified-rule-evaluation.md)
+- [Decision: Native Rule Inspection and Control](017-rule-editor-inspection-and-control.md)
 - [Unified-rule refactor plan](../evolution/2026-09-09-unified-rule-refactor-implementation-plan.md)
 
 ## Status
