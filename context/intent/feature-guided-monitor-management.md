@@ -2,42 +2,38 @@
 
 ## What
 
-Users set up and edit monitors through a guided in-application flow. They choose the activity definition, reporting periods, and the measurements they want to see, then can revise those choices later.
-
-## Why
-
-The setup experience makes activity tracking available to Home Assistant users without requiring manual configuration files, while allowing each monitor to match the user's reporting needs.
+Users create monitors through the native setup flow and create or edit them
+through the complete Activity Rules sidebar editor.
 
 ## Acceptance Criteria
 
-- [ ] Setup guides the user through choosing an activity, behavior, reporting periods, and measurements for each period.
-- [ ] Setup requires at least one reporting period and one measurement.
-- [ ] Users can edit an existing monitor's definition and reporting choices.
-- [ ] The monitor has a user-provided name.
-
-## Delivered Behavior (2026-08-28)
-
-- [x] A rule-changing edit clearly offers keep, clear, or Recorder-reimport of
-  retained history; presentation-only edits do not.
-- [x] Clearing or reimporting history requires an explicit final confirmation.
-- [x] Users can choose the duration display unit for each monitor without a
-  history action.
-- [x] Users can choose report measurements independently for each selected
-  reporting period.
-- [x] Mobile-device monitors are selected by one compatible Companion App
-  device and reject devices whose required entities are disabled or missing.
+- [x] New setup offers zone presence and custom rule choices.
+- [x] After every custom condition, setup shows a readable summary of the
+  expression collected so far and supports AND/OR grouping.
+- [x] Setup requires at least one report period and a metric for each period.
+- [x] Editing traverses the complete monitor contract.
+- [x] Editing a rule or midnight policy clears incompatible summaries only after
+  explicit confirmation.
+- [x] Rule editing starts from the monitor's saved conditions and exposes their
+  current evaluation snapshot before the user changes them.
+- [x] Setup and editing validate template-rule start and stop expressions before
+  the monitor is saved.
+- [x] The Activity Rules sidebar lets an admin create or edit the complete
+  monitor contract without leaving the workspace, then shows a server-computed
+  review and history-clear confirmation before applying it.
 
 ## Related
 
 - [Project Intent](project-intent.md)
-- [Decision: Home Assistant Config-Entry Integration](../decisions/002-home-assistant-integration-architecture.md)
+- [Decision: Unified Activity Rules](../decisions/014-unified-activity-rules.md)
+- [Decision: Unified Rule Data Reset](../decisions/016-unified-rule-data-reset-and-no-recorder-import.md)
+- [Decision: Native Rule Inspection and Control](../decisions/017-rule-editor-inspection-and-control.md)
+- [Decision: Template Activity Rules](../decisions/018-template-activity-rules.md)
+- [Decision: Sidebar Rule Workbench](../decisions/019-sidebar-rule-workbench.md)
+- [Decision: Sidebar Draft Editor](../decisions/021-sidebar-draft-editor.md)
 - [Pattern: Multi-Step Configuration Flow](../knowledge/patterns/multi-step-configuration-flow.md)
-- [Decision: Administrative History Actions and Redacted Diagnostics](../decisions/010-administrative-history-and-diagnostics.md)
-- [Decision: Per-Monitor Duration Presentation Unit](../decisions/011-duration-presentation-unit.md)
-- [Decision: Period-Specific Report Sensor Selection](../decisions/012-period-specific-report-sensor-selection.md)
-- [Decision: Mobile Device Interaction Heartbeat](../decisions/013-mobile-device-interaction-heartbeat.md)
 
 ## Status
 
-- **Created**: 2026-08-27 (Phase: Intent)
-- **Status**: Active (already implemented)
+- **Created**: 2026-08-27
+- **Status**: Active; template rules delivered on 2026-09-10

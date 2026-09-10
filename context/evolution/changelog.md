@@ -1,5 +1,83 @@
 # Changelog
 
+## 2026-09-10
+
+- Replaced the Activity Rules native-flow host with a complete draft editor.
+  Activities can now be created and edited on one themed sidebar screen with
+  model, recursive AND/OR start/stop rules, state-duration, report-silence,
+  templates, behavior, retention, periods, metrics, and midnight policy.
+- The browser only holds drafts. An admin-only integration WebSocket contract
+  validates, previews template and condition results, produces the review diff,
+  and applies changes; it never lets browser code update a ConfigEntry.
+- A rule or midnight-policy change now shows the server-computed history impact
+  and cannot be applied until the administrator explicitly confirms clearing
+  retained history.
+- Fixed the review action method collision, made custom condition field order
+  more natural, and exposed explicit matched/not-matched status for each live
+  condition.
+- Added numeric state/attribute conditions with exact decimal threshold
+  comparisons and the same pending-duration behavior as state conditions.
+- Activity editing is now exposed only in the Activity Rules sidebar, and its
+  icon uses `mdi:clock-outline` to match the integration artwork.
+- Rule and midnight-policy edits preserve retained summaries and leave active
+  sessions open until a subsequent evaluation satisfies the new stop rule.
+- Added a copy action that opens an existing rule as an unsaved detached draft.
+
+## 2026-09-10 — Painel lateral Activity Rules
+
+- Adicionado um painel lateral somente para administradores com todos os
+  monitores, árvores de início/término, estado atual, resultado de templates e
+  prazos pendentes.
+- O painel acompanha o tema claro, escuro ou personalizado do Home Assistant e
+  apresenta rótulos em português quando a interface está em pt-BR.
+- A criação e edição são hospedadas no fluxo nativo da integração pelo painel,
+  sem duplicar validação ou confirmação de histórico.
+
+## 2026-09-10 — Regras de atividade por template
+
+- Adicionado o template **Regra por template**, com expressões booleanas
+  independentes para iniciar e terminar uma atividade.
+- As expressões usam o mecanismo nativo de templates do Home Assistant; assim,
+  alterações em entidades e atributos consultados reavaliam a atividade sem
+  exigir entidades auxiliares ou polling.
+- Documentado o plano do painel lateral **Activity Rules**, com árvore visual
+  AND/OR, inspetor de componentes e estados ao vivo.
+
+## 2026-09-10 — Inspeção e controle de regras durante a edição
+
+- A edição de uma regra personalizada agora começa pelas condições de início e
+  término já salvas, permitindo adicioná-las ou removê-las sem reconstruir a
+  atividade às cegas.
+- Cada tela de condição mostra uma fotografia do estado atual: resultado da
+  expressão, estado observado e prazo restante para condições temporizadas ou
+  de ausência de reportes.
+- Foi mantida a edição pelo fluxo nativo do Home Assistant; uma página lateral
+  em tempo real foi deliberadamente adiada para uma necessidade futura de
+  controle entre vários monitores.
+
+## 2026-09-09 — Refatoração por regras unificadas entregue
+
+- Entregue o motor único de `start_when` e `stop_when`, com condições de estado,
+  estado por duração e ausência de reportes, combinadas por AND/OR.
+- A criação e edição percorrem template, fonte, condições, comportamento,
+  períodos e métricas; a edição de regra ou política de meia-noite confirma a
+  limpeza do histórico incompatível.
+- Removidos tipos legados, Recorder, migrações, tempo desconhecido, políticas
+  globais de indisponibilidade e documentação associada.
+- Entregues dias históricos fechados, médias circulares de horário, atribuição
+  configurável na meia-noite e o contrato estatístico diário `sum`.
+
+## 2026-09-09 — Planejamento da refatoração por regras unificadas
+
+- Aprovado o plano para substituir tipos de monitor por regras personalizadas de
+  início e término combináveis com AND/OR, com o único template inicial de
+  presença em zona.
+- Confirmado que configurações, entidades e armazenamento da versão anterior
+  serão removidos antes da instalação; não haverá migração de compatibilidade.
+- A reconstrução e reimportação pelo Recorder foram removidas do escopo, pois
+  regras compostas e temporizadas não podem ser reconstituídas com fidelidade.
+- Definido que `Last 1` representa ontem, e não o dia em andamento.
+
 ## 2026-09-08 — Monitor de celular em uso
 
 - Adicionado o tipo de monitor **Celular em uso**, configurado pela seleção de

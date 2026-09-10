@@ -1,437 +1,319 @@
-"""Tests for config-flow input helpers."""
+"""Tests for the unified-rule configuration journeys."""
 
 from __future__ import annotations
 
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
-from custom_components.activity_tracker import config_flow
+from homeassistant.util import dt as dt_util
+
 from custom_components.activity_tracker.config_flow import (
     ActivityTrackerConfigFlow,
     ActivityTrackerOptionsFlow,
-    _expected_phone_entity_ids,
-    _is_rule_changing,
-    _mobile_app_phone_entities,
-    _rolling_periods,
-    _split_states,
+    _condition_choices,
+    _conditions_status,
+    _expression,
+    _previous_day_periods,
 )
 from custom_components.activity_tracker.const import (
-    CONF_ACTIVE_STATES,
     CONF_ENABLED_METRICS,
-    CONF_ENTITY_ID,
-    CONF_MONITOR_TYPE,
-    CONF_NAME,
     CONF_PERIOD_METRICS,
-    CONF_PERIODS,
-    OPT_DURATION_UNIT,
-    TYPE_ENTITY_STATE,
-    TYPE_PHONE_IN_USE,
+    CONF_RULE,
+    OPT_CROSS_MIDNIGHT_POLICY,
 )
 
 
-def test_split_states_normalizes_comma_separated_values() -> None:
-    assert _split_states(" on, playing ,,paused ") == ["on", "playing", "paused"]
-
-
-def test_rolling_periods_accepts_only_positive_whole_days() -> None:
-    assert _rolling_periods("7, 35, 0, no") == (
-        ["rolling_days:7", "rolling_days:35"],
-        True,
-    )
-
-
-def test_rule_change_classification_excludes_presentation_options() -> None:
-    data = {
-        CONF_MONITOR_TYPE: TYPE_ENTITY_STATE,
-        CONF_ENTITY_ID: "input_boolean.activity",
-        CONF_ACTIVE_STATES: ["on"],
-        CONF_NAME: "Activity",
-        CONF_PERIODS: ["current_day"],
-        CONF_ENABLED_METRICS: ["total_duration"],
-    }
-    options = {"retention_days": 90, "minimum_session_seconds": 0}
-
-    assert not _is_rule_changing(
-        data,
-        options,
-        {**data, CONF_NAME: "Renamed", CONF_PERIODS: ["current_week"]},
-        {**options, "retention_days": 30},
-    )
-    assert _is_rule_changing(
-        data,
-        options,
-        {**data, CONF_ACTIVE_STATES: ["on", "playing"]},
-        options,
-    )
-
-
-def test_mobile_app_phone_entities_require_enabled_companion_sensors(
-    monkeypatch,
-) -> None:
-    registry = object()
-    monkeypatch.setattr(config_flow.er, "async_get", lambda _: registry)
-    entries = [
-        SimpleNamespace(
-            entity_id="binary_sensor.phone_interactive",
-            platform="mobile_app",
-            domain="binary_sensor",
-            unique_id="webhook_interactive",
-            disabled_by=None,
-        ),
-        SimpleNamespace(
-            entity_id="sensor.phone_last_update_trigger",
-            platform="mobile_app",
-            domain="sensor",
-            unique_id="webhook_last_update_trigger",
-            disabled_by=None,
-        ),
-    ]
-    monkeypatch.setattr(
-        config_flow.er,
-        "async_entries_for_device",
-        lambda *_args, **_kwargs: entries,
-    )
-
-    assert _mobile_app_phone_entities(object(), "phone-device") == {
-        "entity_id": "binary_sensor.phone_interactive",
-        "heartbeat_entity_id": "sensor.phone_last_update_trigger",
-    }
-
-    entries[1].disabled_by = "user"
-    assert _mobile_app_phone_entities(object(), "phone-device") is None
-
-
-def test_phone_entity_validation_shows_ids_derived_from_device_name(
-    monkeypatch,
-) -> None:
-    device_registry = SimpleNamespace(
-        async_get=lambda _: SimpleNamespace(name="SM-A356E", name_by_user=None)
-    )
-    monkeypatch.setattr(config_flow.dr, "async_get", lambda _: device_registry)
-
-    assert _expected_phone_entity_ids(object(), "phone-device") == (
-        "Expected entity IDs: binary_sensor.sm_a356e_interactive and "
-        "sensor.sm_a356e_last_update_trigger."
-    )
-
-
-async def test_phone_monitor_edits_do_not_offer_recorder_reimport() -> None:
-    flow = ActivityTrackerOptionsFlow()
-    flow._monitor = {CONF_MONITOR_TYPE: TYPE_PHONE_IN_USE}
-    flow.async_show_form = lambda **kwargs: kwargs
-
-    result = await flow.async_step_history()
-    schema = result["data_schema"]
-    action = next(key for key in schema.schema if key.schema == "history_action")
-    selector_config = schema.schema[action].config
-
-    assert selector_config["options"] == ["keep", "clear"]
-
-
-async def test_config_flow_runs_the_complete_entity_monitor_journey() -> None:
+def _flow() -> ActivityTrackerConfigFlow:
     flow = ActivityTrackerConfigFlow()
+    flow.hass = SimpleNamespace(states=SimpleNamespace(get=lambda _: None))
     flow.async_show_form = lambda **kwargs: kwargs
     flow.async_create_entry = lambda **kwargs: kwargs
-    flow.async_set_unique_id = AsyncMock()
+    return flow
 
-    first = await flow.async_step_user()
-    assert first["step_id"] == "user"
-    source = await flow.async_step_user({CONF_MONITOR_TYPE: TYPE_ENTITY_STATE})
-    assert source["step_id"] == "source"
-    behavior = await flow.async_step_source(
+
+async def test_custom_flow_finishes_without_an_extra_condition() -> None:
+    flow = _flow()
+
+    assert (await flow.async_step_user({"template": "custom"}))["step_id"] == "source"
+    assert (await flow.async_step_source({"name": "Sleep"}))[
+        "step_id"
+    ] == "start_condition"
+    assert (await flow.async_step_start_condition({"editor_action": "add"}))[
+        "step_id"
+    ] == "condition"
+    assert (
+        await flow.async_step_condition(
+            {
+                "entity_id": "binary_sensor.bed",
+                "condition_type": "state",
+                "states": "on",
+                "operator": "equals",
+                "for_seconds": 0,
+                "next_action": "and",
+            }
+        )
+    )["description_placeholders"]["conditions"] == "(binary_sensor.bed is on)"
+    await flow.async_step_start_condition({"editor_action": "add"})
+    assert (
+        await flow.async_step_condition(
+            {
+                "entity_id": "person.igor",
+                "condition_type": "state",
+                "states": "home",
+                "operator": "equals",
+                "for_seconds": 0,
+                "next_action": "or",
+            }
+        )
+    )["description_placeholders"][
+        "conditions"
+    ] == "(binary_sensor.bed is on AND person.igor is home)"
+    await flow.async_step_start_condition({"editor_action": "add"})
+    assert (
+        await flow.async_step_condition(
+            {
+                "entity_id": "person.jade",
+                "condition_type": "state",
+                "states": "home",
+                "operator": "equals",
+                "for_seconds": 0,
+                "next_action": "finish",
+            }
+        )
+    )["step_id"] == "stop_condition"
+    assert (await flow.async_step_stop_condition({"editor_action": "add"}))[
+        "step_id"
+    ] == "condition"
+    behavior = await flow.async_step_condition(
         {
-            CONF_NAME: "Television",
-            CONF_ENTITY_ID: "media_player.tv",
-            CONF_ACTIVE_STATES: "on, playing",
+            "entity_id": "binary_sensor.bed",
+            "condition_type": "state",
+            "states": "off",
+            "operator": "equals",
+            "for_seconds": 30,
+            "next_action": "finish",
         }
     )
     assert behavior["step_id"] == "behavior"
-    periods = await flow.async_step_behavior(
-        {"retention_days": 90, OPT_DURATION_UNIT: "h"}
+    assert flow._data[CONF_RULE]["start_when"] == _expression(
+        [
+            [
+                {
+                    "type": "state",
+                    "entity_id": "binary_sensor.bed",
+                    "states": ["on"],
+                    "operator": "equals",
+                    "for_seconds": 0,
+                },
+                {
+                    "type": "state",
+                    "entity_id": "person.igor",
+                    "states": ["home"],
+                    "operator": "equals",
+                    "for_seconds": 0,
+                },
+            ],
+            [
+                {
+                    "type": "state",
+                    "entity_id": "person.jade",
+                    "states": ["home"],
+                    "operator": "equals",
+                    "for_seconds": 0,
+                }
+            ],
+        ]
     )
-    assert periods["step_id"] == "periods"
-    invalid = await flow.async_step_periods({CONF_PERIODS: [], "rolling_days": "zero"})
-    assert invalid["errors"] == {CONF_PERIODS: "required"}
-    period_metrics = await flow.async_step_periods(
-        {CONF_PERIODS: ["current_day"], "rolling_days": "7, 35"}
-    )
-    assert period_metrics["step_id"] == "period_metrics"
-    assert (
-        await flow.async_step_period_metrics({CONF_PERIOD_METRICS: ["total_duration"]})
-    )["step_id"] == "period_metrics"
-    assert (
-        await flow.async_step_period_metrics(
-            {CONF_PERIOD_METRICS: ["session_count"]}
-        )
-    )["step_id"] == "period_metrics"
-    metrics = await flow.async_step_period_metrics(
-        {CONF_PERIOD_METRICS: ["average_session_duration"]}
-    )
-    assert metrics["step_id"] == "metrics"
-    review = await flow.async_step_metrics({CONF_ENABLED_METRICS: []})
-    assert review["step_id"] == "review"
-    created = await flow.async_step_review({})
-    assert created["title"] == "Television"
-    assert created["data"][CONF_ACTIVE_STATES] == ["on", "playing"]
-    assert created["data"][CONF_PERIOD_METRICS] == {
-        "current_day": ["total_duration"],
-        "rolling_days:7": ["session_count"],
-        "rolling_days:35": ["average_session_duration"],
-    }
-    assert created["options"][OPT_DURATION_UNIT] == "h"
 
 
-async def test_config_flow_reports_attribute_and_rolling_input_errors() -> None:
-    flow = ActivityTrackerConfigFlow()
-    flow.async_show_form = lambda **kwargs: kwargs
-    flow._monitor = {CONF_MONITOR_TYPE: "foreground_application"}
-    result = await flow.async_step_source(
+async def test_flow_collects_closed_day_periods_and_metric_pairs() -> None:
+    flow = _flow()
+    await flow.async_step_user({"template": "zone_presence"})
+    await flow.async_step_source(
+        {"name": "Home", "entity_id": "person.igor", "zone_entity_id": "zone.home"}
+    )
+    await flow.async_step_behavior(
         {
-            CONF_NAME: "Phone",
-            CONF_ENTITY_ID: "sensor.phone",
-            "value_source": "attribute",
+            "duration_unit": "h",
+            "retention_days": 30,
+            "minimum_session_seconds": 0,
+            "cross_midnight_policy": "split_at_midnight",
         }
     )
-    assert result["errors"] == {"value_attribute": "required"}
-    flow._monitor = {CONF_MONITOR_TYPE: TYPE_ENTITY_STATE}
-    result = await flow.async_step_periods(
-        {CONF_PERIODS: ["current_day"], "rolling_days": "7, no"}
-    )
-    assert result["errors"] == {"rolling_days": "invalid_rolling_days"}
-
-
-async def test_options_flow_edits_a_complete_monitor() -> None:
-    entry = SimpleNamespace(
-        entry_id="monitor-1",
-        title="Old monitor",
-        data={
-            CONF_MONITOR_TYPE: TYPE_ENTITY_STATE,
-            CONF_NAME: "Old monitor",
-            CONF_ENTITY_ID: "input_boolean.old",
-            CONF_ACTIVE_STATES: ["on"],
-            CONF_PERIODS: ["current_day"],
-            CONF_ENABLED_METRICS: ["total_duration"],
-        },
-        options={"retention_days": 90, "minimum_session_seconds": 0},
-    )
-    updates: list[dict[str, object]] = []
-
-    class Entries:
-        def async_get_known_entry(self, entry_id: str):
-            assert entry_id == entry.entry_id
-            return entry
-
-        def async_update_entry(self, updated_entry, **kwargs):
-            assert updated_entry is entry
-            updates.append(kwargs)
-
-    flow = ActivityTrackerOptionsFlow()
-    flow.hass = SimpleNamespace(config_entries=Entries(), data={})
-    flow.handler = entry.entry_id
-    flow.async_show_form = lambda **kwargs: kwargs
-    flow.async_create_entry = lambda **kwargs: kwargs
-
-    assert (await flow.async_step_init())["step_id"] == "init"
-    assert (await flow.async_step_init({CONF_MONITOR_TYPE: TYPE_ENTITY_STATE}))[
-        "step_id"
-    ] == "source"
-    assert (
-        await flow.async_step_source(
-            {
-                CONF_NAME: "New monitor",
-                CONF_ENTITY_ID: "input_boolean.new",
-                CONF_ACTIVE_STATES: "on, playing",
-            }
-        )
-    )["step_id"] == "behavior"
-    assert (await flow.async_step_behavior({"retention_days": 30}))[
-        "step_id"
-    ] == "periods"
     assert (
         await flow.async_step_periods(
-            {CONF_PERIODS: ["current_week"], "rolling_days": "7"}
+            {"periods": ["current_day"], "previous_days": "1, 2"}
         )
     )["step_id"] == "period_metrics"
+    await flow.async_step_period_metrics({CONF_PERIOD_METRICS: ["total_duration"]})
+    await flow.async_step_period_metrics({CONF_PERIOD_METRICS: ["session_count"]})
     assert (
         await flow.async_step_period_metrics(
-            {CONF_PERIOD_METRICS: ["total_duration"]}
-        )
-    )["step_id"] == "period_metrics"
-    assert (
-        await flow.async_step_period_metrics(
-            {CONF_PERIOD_METRICS: ["session_count"]}
+            {CONF_PERIOD_METRICS: ["average_start_time"]}
         )
     )["step_id"] == "metrics"
-    assert (await flow.async_step_metrics({CONF_ENABLED_METRICS: []}))[
-        "step_id"
-    ] == "history"
-    created = await flow.async_step_history({"history_action": "keep"})
+    review = await flow.async_step_metrics(
+        {CONF_ENABLED_METRICS: ["time_since_last_session"]}
+    )
+    created = await flow.async_step_review({})
 
-    assert created["data"]["retention_days"] == 30
-    assert updates[0]["title"] == "New monitor"
-    assert updates[0]["data"][CONF_PERIOD_METRICS] == {
-        "current_week": ["total_duration"],
-        "rolling_days:7": ["session_count"],
+    assert review["step_id"] == "review"
+    assert created["data"][CONF_PERIOD_METRICS] == {
+        "current_day": ["total_duration"],
+        "previous_day:1": ["session_count"],
+        "previous_day:2": ["average_start_time"],
+    }
+    assert _previous_day_periods("1, 2") == ["previous_day:1", "previous_day:2"]
+
+
+async def test_template_rule_flow_collects_start_and_stop_templates() -> None:
+    flow = _flow()
+
+    assert (await flow.async_step_user({"template": "template_rule"}))[
+        "step_id"
+    ] == "source"
+    assert (await flow.async_step_source({"name": "High battery"}))[
+        "step_id"
+    ] == "template_rule"
+    behavior = await flow.async_step_template_rule(
+        {"start_template": "true", "stop_template": "false"}
+    )
+
+    assert behavior["step_id"] == "behavior"
+    assert flow._data[CONF_RULE] == {
+        "start_when": {"type": "template", "value_template": "true"},
+        "stop_when": {"type": "template", "value_template": "false"},
     }
 
 
-async def test_options_flow_confirms_destructive_history_actions() -> None:
+async def test_options_rule_change_requires_history_clear_confirmation() -> None:
     entry = SimpleNamespace(
-        entry_id="monitor-1",
-        title="Monitor",
-        data={
-            CONF_MONITOR_TYPE: TYPE_ENTITY_STATE,
-            CONF_NAME: "Monitor",
-            CONF_ENTITY_ID: "input_boolean.activity",
-            CONF_ACTIVE_STATES: ["on"],
-            CONF_PERIODS: ["current_day"],
-            CONF_ENABLED_METRICS: ["total_duration"],
-        },
-        options={"retention_days": 90, "minimum_session_seconds": 0},
+        entry_id="monitor",
+        title="Old",
+        data={"template": "custom", "name": "Old", CONF_RULE: {}},
+        options={OPT_CROSS_MIDNIGHT_POLICY: "split_at_midnight"},
     )
-    updates: list[dict[str, object]] = []
     runtime = SimpleNamespace(async_clear_history=AsyncMock())
+    updates = []
 
     class Entries:
-        def async_get_known_entry(self, entry_id: str):
+        def async_get_known_entry(self, _entry_id):
             return entry
 
-        def async_update_entry(self, updated_entry, **kwargs):
+        def async_update_entry(self, _entry, **kwargs):
             updates.append(kwargs)
 
     flow = ActivityTrackerOptionsFlow()
     flow.hass = SimpleNamespace(
-        config_entries=Entries(), data={"activity_tracker": {entry.entry_id: runtime}}
+        config_entries=Entries(),
+        data={"activity_tracker": {"monitor": runtime}},
+        states=SimpleNamespace(get=lambda _: None),
     )
-    flow.handler = entry.entry_id
+    flow.handler = "monitor"
     flow.async_show_form = lambda **kwargs: kwargs
     flow.async_create_entry = lambda **kwargs: kwargs
-
-    await flow.async_step_init({CONF_MONITOR_TYPE: TYPE_ENTITY_STATE})
-    await flow.async_step_source(
+    flow._start_editor(
         {
-            CONF_NAME: "Monitor",
-            CONF_ENTITY_ID: "input_boolean.activity",
-            CONF_ACTIVE_STATES: "on, playing",
+            "template": "custom",
+            "name": "New",
+            CONF_RULE: {"new": True},
+            CONF_PERIOD_METRICS: {"current_day": ["total_duration"]},
+            CONF_ENABLED_METRICS: [],
+        },
+        {OPT_CROSS_MIDNIGHT_POLICY: "ended_day"},
+    )
+    result = await flow._async_save_monitor()
+    assert result["step_id"] == "confirm_history"
+    assert (await flow.async_step_confirm_history({"confirm_history_action": False}))[
+        "errors"
+    ] == {"confirm_history_action": "confirmation_required"}
+    await flow.async_step_confirm_history({"confirm_history_action": True})
+    runtime.async_clear_history.assert_awaited_once()
+    assert updates[0]["title"] == "New"
+
+
+async def test_options_preserves_conditions_and_shows_current_snapshot() -> None:
+    """Editing an activity must begin with its saved rule, not a blank editor."""
+    rule = {
+        "start_when": _expression(
+            [
+                [
+                    {
+                        "type": "state",
+                        "entity_id": "binary_sensor.bed",
+                        "states": ["on"],
+                        "operator": "equals",
+                        "for_seconds": 0,
+                    }
+                ]
+            ]
+        ),
+        "stop_when": _expression(
+            [
+                [
+                    {
+                        "type": "state",
+                        "entity_id": "binary_sensor.bed",
+                        "states": ["off"],
+                        "operator": "equals",
+                        "for_seconds": 0,
+                    }
+                ]
+            ]
+        ),
+    }
+    state = SimpleNamespace(state="on", last_changed=dt_util.utcnow())
+    flow = ActivityTrackerOptionsFlow()
+    flow.hass = SimpleNamespace(states=SimpleNamespace(get=lambda _: state))
+    flow.async_show_form = lambda **kwargs: kwargs
+    flow._start_editor(
+        {
+            "template": "custom",
+            "name": "Sleep",
+            CONF_RULE: rule,
+            CONF_PERIOD_METRICS: {"current_day": ["total_duration"]},
+            CONF_ENABLED_METRICS: [],
         }
     )
-    await flow.async_step_behavior({"retention_days": 90})
-    await flow.async_step_periods({CONF_PERIODS: ["current_day"], "rolling_days": ""})
-    await flow.async_step_period_metrics(
-        {CONF_PERIOD_METRICS: ["total_duration"]}
+
+    form = await flow.async_step_source({"name": "Sleep"})
+
+    assert form["description_placeholders"]["conditions"] == (
+        "(binary_sensor.bed is on)"
     )
-    assert (
-        await flow.async_step_metrics({CONF_ENABLED_METRICS: []})
-    )["step_id"] == "history"
-    assert (
-        await flow.async_step_history({"history_action": "clear"})
-    )["step_id"] == "confirm_history"
-    rejected = await flow.async_step_confirm_history({"confirm_history_action": False})
-    assert rejected["errors"] == {"confirm_history_action": "confirmation_required"}
-    assert not updates
-    created = await flow.async_step_confirm_history({"confirm_history_action": True})
+    assert "Start: ✓ matched" in form["description_placeholders"]["status"]
+    assert "current on" in form["description_placeholders"]["status"]
 
-    assert created["data"]["retention_days"] == 90
-    runtime.async_clear_history.assert_awaited_once()
-
-
-async def test_options_flow_skips_history_step_for_presentation_only_edit() -> None:
-    entry = SimpleNamespace(
-        entry_id="monitor-1",
-        data={
-            CONF_MONITOR_TYPE: TYPE_ENTITY_STATE,
-            CONF_NAME: "Monitor",
-            CONF_ENTITY_ID: "input_boolean.activity",
-            CONF_ACTIVE_STATES: ["on"],
-            CONF_PERIODS: ["current_day"],
-            CONF_ENABLED_METRICS: ["total_duration"],
-        },
-        options={"retention_days": 90, "minimum_session_seconds": 0},
+    removing = await flow.async_step_start_condition({"editor_action": "remove"})
+    assert removing["step_id"] == "remove_condition"
+    removed = await flow.async_step_remove_condition(
+        {"condition_id": _condition_choices(flow._conditions["start"])[0]}
     )
 
-    class Entries:
-        def async_get_known_entry(self, entry_id: str):
-            return entry
+    assert removed["description_placeholders"]["conditions"] == "No conditions yet."
 
-        def async_update_entry(self, updated_entry, **kwargs):
-            return None
 
-    flow = ActivityTrackerOptionsFlow()
-    flow.hass = SimpleNamespace(config_entries=Entries(), data={})
-    flow.handler = entry.entry_id
-    flow.async_show_form = lambda **kwargs: kwargs
-    flow.async_create_entry = lambda **kwargs: kwargs
-    flow._monitor = {
-        **entry.data,
-        CONF_PERIOD_METRICS: {"current_day": ["total_duration"]},
-        CONF_NAME: "Renamed",
-    }
-    flow._monitor.pop(CONF_PERIODS)
-    flow._options = {**entry.options, "retention_days": 30}
-
-    result = await flow.async_step_metrics(
-        {CONF_ENABLED_METRICS: []}
+def test_condition_snapshot_shows_a_pending_report_silence_deadline() -> None:
+    state = SimpleNamespace(
+        state="on",
+        last_changed=dt_util.utcnow(),
+        last_reported=dt_util.utcnow(),
     )
 
-    assert result["data"]["retention_days"] == 30
-
-
-async def test_options_flow_treats_duration_unit_as_presentation_only() -> None:
-    entry = SimpleNamespace(
-        entry_id="monitor-1",
-        data={
-            CONF_MONITOR_TYPE: TYPE_ENTITY_STATE,
-            CONF_NAME: "Monitor",
-            CONF_ENTITY_ID: "input_boolean.activity",
-            CONF_ACTIVE_STATES: ["on"],
-            CONF_PERIODS: ["current_day"],
-            CONF_ENABLED_METRICS: ["total_duration"],
-        },
-        options={"retention_days": 90, "minimum_session_seconds": 0},
+    status = _conditions_status(
+        SimpleNamespace(states=SimpleNamespace(get=lambda _: state)),
+        [
+            [
+                {
+                    "type": "report_silence",
+                    "entity_id": "sensor.phone",
+                    "for_seconds": 300,
+                }
+            ]
+        ],
+        "stop",
     )
 
-    class Entries:
-        def async_get_known_entry(self, entry_id: str):
-            return entry
-
-        def async_update_entry(self, updated_entry, **kwargs):
-            return None
-
-    flow = ActivityTrackerOptionsFlow()
-    flow.hass = SimpleNamespace(config_entries=Entries(), data={})
-    flow.handler = entry.entry_id
-    flow.async_show_form = lambda **kwargs: kwargs
-    flow.async_create_entry = lambda **kwargs: kwargs
-    flow._monitor = {
-        **entry.data,
-        CONF_PERIOD_METRICS: {"current_day": ["total_duration"]},
-    }
-    flow._monitor.pop(CONF_PERIODS)
-    flow._options = {**entry.options, OPT_DURATION_UNIT: "min"}
-
-    result = await flow.async_step_metrics({CONF_ENABLED_METRICS: []})
-
-    assert result["data"][OPT_DURATION_UNIT] == "min"
-
-
-async def test_options_flow_defaults_legacy_monitors_to_seconds() -> None:
-    entry = SimpleNamespace(
-        entry_id="monitor-1",
-        data={CONF_MONITOR_TYPE: TYPE_ENTITY_STATE},
-        options={},
-    )
-
-    class Entries:
-        def async_get_known_entry(self, entry_id: str):
-            assert entry_id == entry.entry_id
-            return entry
-
-    flow = ActivityTrackerOptionsFlow()
-    flow.hass = SimpleNamespace(config_entries=Entries())
-    flow.handler = entry.entry_id
-    flow.async_show_form = lambda **kwargs: kwargs
-
-    flow.async_step_source = AsyncMock(return_value={"step_id": "source"})
-    await flow.async_step_init({CONF_MONITOR_TYPE: TYPE_ENTITY_STATE})
-
-    assert flow._options[OPT_DURATION_UNIT] == "s"
+    assert "Stop: ✕ not matched" in status
+    assert "sensor.phone: current on" in status
+    assert "remaining" in status

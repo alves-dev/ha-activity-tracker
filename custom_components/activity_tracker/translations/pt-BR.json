@@ -1,296 +1,44 @@
 {
   "title": "Rastreador de atividades",
-  "config": {
-    "step": {
-      "user": {
-        "title": "O que você quer acompanhar?",
-        "description": "Um monitor observa uma regra de atividade e cria seu próprio dispositivo no Home Assistant. {monitor_examples}",
-        "data": {
-          "monitor_type": "Como a atividade deve ser identificada?"
-        },
-        "data_description": {
-          "monitor_type": "Cada opção tem uma explicação curta. Escolha a que melhor corresponde à atividade que deseja medir."
-        }
-      },
-      "source": {
-        "title": "Escolha a fonte da atividade",
-        "description": "{monitor_type_guidance}\n\n{phone_entity_validation}",
-        "data": {
-          "name": "Nome deste monitor",
-          "device_id": "Dispositivo do aplicativo Companion",
-          "entity_id": "Entidade a observar",
-          "active_states": "Estados que indicam que a atividade está acontecendo",
-          "zone_entity_id": "Zona que conta como atividade",
-          "person_entity_id": "Pessoa que identifica este monitor",
-          "area_id": "Área que conta como atividade",
-          "presence_entity_id": "Sensor que detecta presença",
-          "value_source": "Onde ler o aplicativo",
-          "value_attribute": "Atributo que contém o ID do aplicativo",
-          "label_attribute": "Atributo que contém o nome do aplicativo (opcional)"
-        },
-        "data_description": {
-          "name": "Um nome claro para o dispositivo e as entidades deste monitor, por exemplo, “TV da sala” ou “Visitas ao barbeiro”.",
-          "device_id": "Escolha um dispositivo do aplicativo Home Assistant Companion. O Rastreador de atividades encontra automaticamente as entidades Interativo e Último gatilho de atualização.",
-          "entity_id": "A entidade cujo estado será observado. O Rastreador de atividades nunca a altera.",
-          "active_states": "Informe os valores exatos dos estados separados por vírgulas, por exemplo: on, playing, paused. Mudar entre esses valores mantém uma única sessão aberta.",
-          "zone_entity_id": "Somente esta zona conta como atividade. Casa, fora de casa e todas as outras zonas não contam.",
-          "person_entity_id": "Usada apenas para identificar e nomear. O sensor de presença selecionado é a fonte que determina a atividade.",
-          "area_id": "Usada para identificar e nomear a área. Uma área sozinha não informa quem está presente.",
-          "presence_entity_id": "O sensor binário que informa se a pessoa selecionada está na área escolhida. Normalmente ele está ativo quando o estado é on.",
-          "value_source": "Use Estado da entidade quando ele for o identificador do aplicativo. Use Atributo da entidade quando o identificador estiver armazenado em um atributo.",
-          "value_attribute": "Obrigatório ao usar um atributo. Quando disponível, prefira um identificador estável, como o nome do pacote.",
-          "label_attribute": "Nome amigável opcional mostrado no Home Assistant. Alterar este nome não cria um aplicativo rastreado diferente."
-        }
-      },
-      "behavior": {
-        "title": "Defina o comportamento das sessões",
-        "description": "Estas escolhas se aplicam somente a este monitor. Elas determinam quais atividades concluídas são mantidas e como interrupções curtas são tratadas.",
-        "data": {
-          "duration_unit": "Formato de exibição da duração",
-          "phone_silence_tolerance_seconds": "Encerrar após ficar sem comunicação do celular (segundos)",
-          "retention_days": "Manter relatórios por (dias)",
-          "minimum_session_seconds": "Ignorar sessões menores que (segundos)",
-          "unavailable_behavior": "Se a fonte ficar indisponível",
-          "unavailable_tolerance_seconds": "Aguardar antes de tratar fonte indisponível (segundos)",
-          "merge_gap_seconds": "Ignorar pausas inativas menores que (segundos)",
-          "import_recorder_history": "Importar histórico anterior do Recorder"
-        },
-        "data_description": {
-          "duration_unit": "Escolha como os sensores de duração são mostrados. Isso altera apenas a exibição, não o tempo registrado nem o histórico.",
-          "phone_silence_tolerance_seconds": "Enquanto a tela estiver interativa, trata esta quantidade de segundos sem um relatório do aplicativo Companion como fonte indisponível. O padrão para novos monitores de celular é 1800 segundos.",
-          "retention_days": "Quantidade de dias de calendário para manter resumos diários compactos. O mínimo é 7 dias; resumos mais antigos são excluídos durante a limpeza.",
-          "minimum_session_seconds": "Sessões concluídas menores que esta quantidade de segundos são descartadas. Use 0 para manter todas as sessões.",
-          "unavailable_behavior": "Escolha se uma fonte indisponível ou desconhecida encerra a atividade, aguarda brevemente ou registra um período como tempo desconhecido.",
-          "unavailable_tolerance_seconds": "Por quanto tempo uma fonte indisponível pode permanecer pendente antes de aplicar o comportamento escolhido. Use 0 para aplicar imediatamente.",
-          "merge_gap_seconds": "Para pequenas pausas inativas observadas, como ruído de GPS. A pausa não é atividade. Use 0 para encerrar a sessão imediatamente.",
-          "import_recorder_history": "Reconstrói os resumos diários mantidos com o histórico existente da entidade no Recorder. Isso pode levar alguns instantes e começa no período de retenção configurado."
-        }
-      },
-      "periods": {
-        "title": "Escolha os períodos dos relatórios",
-        "description": "Selecione um ou mais períodos para os sensores de relatório. Um período móvel usa datas locais do calendário, não uma quantidade exata de blocos de 24 horas.",
-        "data": {
-          "periods": "Períodos de calendário para relatar",
-          "rolling_days": "Períodos móveis extras (dias)"
-        },
-        "data_description": {
-          "periods": "Hoje começa à meia-noite local. A semana e o mês atuais seguem o calendário local do Home Assistant.",
-          "rolling_days": "Valores inteiros positivos opcionais separados por vírgulas, por exemplo: 7, 30, 35. “35” significa hoje mais as 34 datas locais anteriores."
-        }
-      },
-      "period_metrics": {
-        "title": "Escolha os sensores a criar",
-        "description": "Selecione os sensores de relatório a criar para {period}.",
-        "data": {
-          "period_metrics": "Relatórios e sensores a criar para este período"
-        },
-        "data_description": {
-          "period_metrics": "Cada métrica selecionada cria uma entidade somente para este período de relatório."
-        }
-      },
-      "metrics": {
-        "title": "Escolha os sensores gerais do monitor",
-        "description": "Opcionalmente, selecione sensores que não usam um período de relatório.",
-        "data": {
-          "enabled_metrics": "Sensores gerais a criar"
-        },
-        "data_description": {
-          "enabled_metrics": "Os sensores da sessão atual, da última sessão e de dia da semana criam uma entidade para este monitor."
-        }
-      },
-      "review": {
-        "title": "Revise este monitor",
-        "description": "Criar {name} usando {source}. Ele terá {metrics} tipo(s) de métrica selecionado(s) nestes períodos: {periods}. Você poderá alterar o comportamento das sessões depois em Configurar."
-      }
-    },
-    "error": {
-      "required": "Informe pelo menos um valor antes de continuar.",
-      "invalid_rolling_days": "Use apenas números inteiros positivos separados por vírgulas, por exemplo: 7, 30, 35.",
-      "mobile_app_phone_entities_missing": "Este dispositivo precisa ter as entidades Interativo e Último gatilho de atualização do aplicativo Home Assistant Companion habilitadas."
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Editar monitor",
-        "description": "Atualize a regra, fonte, relatórios, sensores e comportamento das sessões. Ao final, escolha o que fazer com o histórico existente.",
-        "data": {
-          "monitor_type": "Como a atividade deve ser identificada?"
-        },
-        "data_description": {
-          "monitor_type": "Você pode alterar o tipo e a fonte do monitor. Alterar a regra pode tornar o histórico existente incomparável."
-        }
-      },
-      "source": {
-        "title": "Escolha a fonte da atividade",
-        "description": "{monitor_type_guidance}\n\n{phone_entity_validation}",
-        "data": {
-          "name": "Nome deste monitor",
-          "device_id": "Dispositivo do aplicativo Companion",
-          "entity_id": "Entidade a observar",
-          "active_states": "Estados que indicam que a atividade está acontecendo",
-          "zone_entity_id": "Zona que conta como atividade",
-          "person_entity_id": "Pessoa que identifica este monitor",
-          "area_id": "Área que conta como atividade",
-          "presence_entity_id": "Sensor que detecta presença",
-          "value_source": "Onde ler o aplicativo",
-          "value_attribute": "Atributo que contém o ID do aplicativo",
-          "label_attribute": "Atributo que contém o nome do aplicativo (opcional)"
-        },
-        "data_description": {
-          "name": "Um nome claro para o dispositivo e as entidades deste monitor.",
-          "device_id": "Escolha um dispositivo do aplicativo Home Assistant Companion. O Rastreador de atividades encontra automaticamente as entidades Interativo e Último gatilho de atualização.",
-          "entity_id": "A entidade cujo estado será observado. O Rastreador de atividades nunca a altera.",
-          "active_states": "Informe os valores exatos dos estados separados por vírgulas. Mudar entre esses valores mantém uma única sessão aberta.",
-          "zone_entity_id": "Somente esta zona conta como atividade.",
-          "person_entity_id": "Usada apenas para identificar e nomear. O sensor de presença selecionado determina a atividade.",
-          "area_id": "Usada para identificar e nomear a área. Uma área sozinha não informa quem está presente.",
-          "presence_entity_id": "O sensor binário que informa se a pessoa selecionada está na área escolhida.",
-          "value_source": "Escolha se o identificador do aplicativo vem do estado da entidade ou de um atributo.",
-          "value_attribute": "Obrigatório quando o identificador do aplicativo está em um atributo.",
-          "label_attribute": "Nome amigável opcional do aplicativo mostrado no Home Assistant."
-        }
-      },
-      "behavior": {
-        "title": "Defina o comportamento das sessões",
-        "description": "Estas escolhas se aplicam a observações futuras deste monitor.",
-        "data": {
-          "duration_unit": "Formato de exibição da duração",
-          "phone_silence_tolerance_seconds": "Encerrar após ficar sem comunicação do celular (segundos)",
-          "retention_days": "Manter relatórios por (dias)",
-          "minimum_session_seconds": "Ignorar sessões menores que (segundos)",
-          "unavailable_behavior": "Se a fonte ficar indisponível",
-          "unavailable_tolerance_seconds": "Aguardar antes de tratar fonte indisponível (segundos)",
-          "merge_gap_seconds": "Ignorar pausas inativas menores que (segundos)"
-        },
-        "data_description": {
-          "duration_unit": "Escolha como os sensores de duração são mostrados. Isso altera apenas a exibição, não o tempo registrado nem o histórico.",
-          "phone_silence_tolerance_seconds": "Enquanto a tela estiver interativa, trata esta quantidade de segundos sem um relatório do aplicativo Companion como fonte indisponível. O padrão para novos monitores de celular é 1800 segundos.",
-          "retention_days": "Quantidade de dias de calendário a manter. Um período de relatório maior que este valor não poderá ser confiável.",
-          "minimum_session_seconds": "Descarta sessões concluídas menores que esta duração. Defina 0 para manter todas as sessões.",
-          "unavailable_behavior": "Como uma fonte desconhecida ou indisponível afeta a sessão em andamento.",
-          "unavailable_tolerance_seconds": "Aguarda esta quantidade de segundos antes de aplicar o comportamento para fonte indisponível.",
-          "merge_gap_seconds": "Trata uma breve pausa inativa observada como parte de uma única visita ou uso. A pausa é excluída da duração."
-        }
-      },
-      "periods": {
-        "title": "Escolha os períodos dos relatórios",
-        "description": "Selecione um ou mais períodos para os sensores de relatório.",
-        "data": {
-          "periods": "Períodos de calendário para relatar",
-          "rolling_days": "Períodos móveis extras (dias)"
-        },
-        "data_description": {
-          "periods": "Hoje começa à meia-noite local. A semana e o mês atuais seguem o calendário local do Home Assistant.",
-          "rolling_days": "Valores inteiros positivos opcionais separados por vírgulas, por exemplo: 7, 30, 35."
-        }
-      },
-      "period_metrics": {
-        "title": "Escolha os sensores a criar",
-        "description": "Selecione os sensores de relatório a criar para {period}.",
-        "data": {
-          "period_metrics": "Relatórios e sensores a criar para este período"
-        },
-        "data_description": {
-          "period_metrics": "Cada métrica selecionada cria uma entidade somente para este período de relatório."
-        }
-      },
-      "metrics": {
-        "title": "Escolha os sensores gerais do monitor",
-        "description": "Opcionalmente, selecione sensores que não usam um período de relatório.",
-        "data": {
-          "enabled_metrics": "Sensores gerais a criar"
-        },
-        "data_description": {
-          "enabled_metrics": "Os sensores da sessão atual, da última sessão e de dia da semana criam uma entidade para este monitor."
-        }
-      },
-      "history": {
-        "title": "Escolha o que fazer com o histórico",
-        "description": "Use reimportar quando a regra alterada deve ser aplicada ao histórico disponível no Recorder. Isso substitui os resumos dentro do período de retenção.",
-        "data": {
-          "history_action": "Histórico existente"
-        },
-        "data_description": {
-          "history_action": "Manter preserva os resumos atuais; limpar os exclui; reimportar os reconstrói usando a fonte configurada e o histórico do Recorder."
-        }
-      },
-      "confirm_history": {
-        "title": "Confirme a ação no histórico",
-        "description": "Confirme {action} antes de mudar o histórico retido. Limpar remove todos os resumos retidos; reimportar substitui somente o intervalo disponível no Recorder.",
-        "data": {
-          "confirm_history_action": "Entendo que isto altera o histórico retido"
-        }
-      }
-    },
-    "error": {
-      "confirmation_required": "Selecione a confirmação antes de continuar.",
-      "mobile_app_phone_entities_missing": "Este dispositivo precisa ter as entidades Interativo e Último gatilho de atualização do aplicativo Home Assistant Companion habilitadas."
-    }
-  },
+  "config": {"step": {
+    "user": {"title": "O que você quer rastrear?", "description": "Um monitor observa uma regra de atividade e cria seu próprio dispositivo no Home Assistant.", "data": {"template": "Como você quer começar?"}},
+    "source": {"title": "Escolha a fonte da atividade", "description": "Dê um nome ao monitor. Presença em zona também precisa da pessoa ou dispositivo rastreado e da zona.", "data": {"name": "Nome deste monitor", "entity_id": "Pessoa ou dispositivo rastreado", "zone_entity_id": "Zona"}},
+    "template_rule": {"title": "Defina a regra por template", "description": "Os dois templates devem produzir um booleano do Home Assistant. Prévia atual — início: {start_result}; término: {stop_result}.", "data": {"start_template": "Iniciar quando", "stop_template": "Terminar quando"}},
+    "start_condition": {"title": "Gerenciar condições de início", "description": "Condições salvas: {conditions}\\n\\nFotografia atual: {status}", "data": {"editor_action": "Ação"}},
+    "stop_condition": {"title": "Gerenciar condições de término", "description": "Condições salvas: {conditions}\\n\\nFotografia atual: {status}", "data": {"editor_action": "Ação"}},
+    "condition": {"title": "Adicionar condição", "description": "Defina a nova condição.", "data": {"entity_id": "Entidade", "condition_type": "Condição", "attribute": "Atributo (opcional)", "states": "Estados", "numeric_value": "Valor numérico", "operator": "Comparação", "numeric_operator": "Comparação numérica", "for_seconds": "Permanecer por (segundos)", "next_action": "Após adicionar"}},
+    "remove_condition": {"title": "Remover condição", "description": "Condições salvas: {conditions}", "data": {"condition_id": "Condição a remover"}},
+    "behavior": {"title": "Defina o comportamento das sessões", "description": "Estas escolhas valem para as sessões concluídas e a apresentação deste monitor.", "data": {"duration_unit": "Unidade de exibição da duração", "retention_days": "Manter relatórios por (dias)", "minimum_session_seconds": "Ignorar sessões menores que (segundos)", "cross_midnight_policy": "Sessão que atravessa a meia-noite"}, "data_description": {"cross_midnight_policy": "Dia de início atribui toda a duração à data em que a sessão começa. Dia de término atribui toda a duração à data em que ela termina. Dividir na meia-noite local atribui cada trecho real e uma sessão a cada data participante."}},
+    "periods": {"title": "Escolha os períodos dos relatórios", "description": "Os períodos atuais mostram o observado até agora. Último 1 é ontem e Último 2 é anteontem.", "data": {"periods": "Períodos atuais do calendário", "previous_days": "Dias fechados adicionais (por exemplo: 1, 2, 7)"}},
+    "period_metrics": {"title": "Escolha os sensores de relatório", "description": "Escolha pelo menos um sensor de relatório para {period}.", "data": {"period_metrics": "Sensores de relatório"}},
+    "metrics": {"title": "Escolha os sensores gerais", "description": "Estes sensores opcionais não têm período de relatório.", "data": {"enabled_metrics": "Sensores gerais"}},
+    "review": {"title": "Revise este monitor", "description": "Criar {name} usando {source}. Ele terá {metrics} tipo(s) de métrica para: {periods}.\\n\\nInício: {start_conditions}\\nTérmino: {stop_conditions}\\n\\nFotografia atual: {status}"}
+  }, "error": {"required": "Informe pelo menos um valor antes de continuar.", "invalid_previous_days": "Use números inteiros positivos separados por vírgulas, por exemplo: 1, 2, 7.", "condition_required": "Escolha uma condição salva para remover.", "conditions_required": "Mantenha ou adicione pelo menos uma condição antes de continuar.", "invalid_template": "Informe um template válido do Home Assistant."}},
+  "options": {"step": {
+    "init": {"title": "Editar monitor", "description": "Edite o modelo, fonte, condições, relatórios, sensores ou comportamento.", "data": {"template": "Como você quer começar?"}},
+    "source": {"title": "Escolha a fonte da atividade", "description": "Dê um nome ao monitor. Presença em zona também precisa da pessoa ou dispositivo rastreado e da zona.", "data": {"name": "Nome deste monitor", "entity_id": "Pessoa ou dispositivo rastreado", "zone_entity_id": "Zona"}},
+    "template_rule": {"title": "Defina a regra por template", "description": "Os dois templates devem produzir um booleano do Home Assistant. Prévia atual — início: {start_result}; término: {stop_result}.", "data": {"start_template": "Iniciar quando", "stop_template": "Terminar quando"}},
+    "start_condition": {"title": "Gerenciar condições de início", "description": "Condições salvas: {conditions}\\n\\nFotografia atual: {status}", "data": {"editor_action": "Ação"}},
+    "stop_condition": {"title": "Gerenciar condições de término", "description": "Condições salvas: {conditions}\\n\\nFotografia atual: {status}", "data": {"editor_action": "Ação"}},
+    "condition": {"title": "Adicionar condição", "description": "Defina a nova condição.", "data": {"entity_id": "Entidade", "condition_type": "Condição", "attribute": "Atributo (opcional)", "states": "Estados", "numeric_value": "Valor numérico", "operator": "Comparação", "numeric_operator": "Comparação numérica", "for_seconds": "Permanecer por (segundos)", "next_action": "Após adicionar"}},
+    "remove_condition": {"title": "Remover condição", "description": "Condições salvas: {conditions}", "data": {"condition_id": "Condição a remover"}},
+    "behavior": {"title": "Defina o comportamento das sessões", "description": "Estas escolhas valem para as sessões concluídas e a apresentação deste monitor.", "data": {"duration_unit": "Unidade de exibição da duração", "retention_days": "Manter relatórios por (dias)", "minimum_session_seconds": "Ignorar sessões menores que (segundos)", "cross_midnight_policy": "Sessão que atravessa a meia-noite"}},
+    "periods": {"title": "Escolha os períodos dos relatórios", "description": "Último 1 é ontem e Último 2 é anteontem.", "data": {"periods": "Períodos atuais do calendário", "previous_days": "Dias fechados adicionais (por exemplo: 1, 2, 7)"}},
+    "period_metrics": {"title": "Escolha os sensores de relatório", "description": "Escolha pelo menos um sensor de relatório para {period}.", "data": {"period_metrics": "Sensores de relatório"}},
+    "metrics": {"title": "Escolha os sensores gerais", "description": "Estes sensores opcionais não têm período de relatório.", "data": {"enabled_metrics": "Sensores gerais"}},
+    "review": {"title": "Revise este monitor", "description": "Salvar {name} usando {source}. Ele terá {metrics} tipo(s) de métrica para: {periods}.\\n\\nInício: {start_conditions}\\nTérmino: {stop_conditions}\\n\\nFotografia atual: {status}"},
+    "confirm_history": {"title": "Confirme a limpeza do histórico", "description": "Alterar uma regra de atividade ou a política de meia-noite torna os resumos existentes incompatíveis. Confirme para limpar o histórico retido antes de salvar.", "data": {"confirm_history_action": "Entendo que o histórico retido será limpo"}}
+  }, "error": {"confirmation_required": "Selecione a confirmação antes de continuar.", "condition_required": "Escolha uma condição salva para remover.", "conditions_required": "Mantenha ou adicione pelo menos uma condição antes de continuar.", "invalid_template": "Informe um template válido do Home Assistant."}},
   "selector": {
-    "monitor_type": {
-      "options": {
-        "entity_state": "Estado da entidade — acompanha uma entidade enquanto ela estiver nos estados selecionados.",
-        "zone": "Pessoa ou dispositivo em uma zona — acompanha visitas a uma zona do Home Assistant.",
-        "area_presence": "Pessoa em uma área interna — usa um sensor binário de presença para uma área.",
-        "foreground_application": "Aplicativo em primeiro plano — acompanha o aplicativo informado atualmente por uma entidade.",
-        "phone_in_use": "Celular em uso — acompanha um dispositivo Android do aplicativo Companion enquanto sua tela está interativa e se comunicando.",
-        "generic": "Regra de estado personalizada — acompanha qualquer entidade usando os estados ativos selecionados."
-      }
-    },
-    "application_value_source": {
-      "options": {
-        "state": "Estado da entidade — o valor do aplicativo é o estado da entidade.",
-        "attribute": "Atributo da entidade — o valor do aplicativo está armazenado em um atributo."
-      }
-    },
-    "report_period": {
-      "options": {
-        "current_day": "Hoje — da meia-noite local até agora.",
-        "current_week": "Semana atual — usa o calendário local do Home Assistant.",
-        "current_month": "Mês atual — usa o calendário local do Home Assistant."
-      }
-    },
-    "metric": {
-      "options": {
-        "total_duration": "Duração total da atividade",
-        "session_count": "Quantidade de sessões",
-        "current_session_duration": "Duração da sessão atual",
-        "last_session_duration": "Duração da sessão concluída mais recente",
-        "last_session_start": "Início da sessão concluída mais recente",
-        "last_session_end": "Fim da sessão concluída mais recente",
-        "days_since_last_session": "Dias desde a sessão concluída mais recente",
-        "average_daily_duration": "Duração média da atividade por dia",
-        "average_session_duration": "Duração média das sessões",
-        "longest_session_duration": "Duração da sessão mais longa",
-        "shortest_session_duration": "Duração da sessão mais curta",
-        "first_activity_time": "Primeiro horário de atividade hoje",
-        "last_activity_time": "Último horário de atividade hoje",
-        "weekday_highest_total": "Dia da semana com mais atividade",
-        "unknown_duration": "Tempo cujo estado de atividade é desconhecido"
-      }
-    },
-    "unavailable_behavior": {
-      "options": {
-        "end": "Encerrar a sessão — interrompe a atividade quando a fonte fica indisponível.",
-        "pending": "Manter pendente — aguarda a fonte voltar antes de decidir.",
-        "unknown": "Marcar o tempo como desconhecido — preserva o intervalo como incerto."
-      }
-    },
-    "duration_unit": {
-      "options": {
-        "s": "Segundos",
-        "min": "Minutos",
-        "h": "Horas"
-      }
-    },
-    "history_action": {
-      "options": {
-        "keep": "Manter histórico existente — usa a nova regra somente para atividades futuras.",
-        "clear": "Limpar histórico existente — começa a coletar novamente agora.",
-        "reimport": "Reimportar do Recorder — reconstrói o histórico mantido com a nova regra."
-      }
-    }
+    "template": {"options": {"zone_presence": "Presença em zona", "custom": "Regra personalizada", "template_rule": "Regra por template"}},
+    "condition_type": {"options": {"state": "Estado da entidade", "numeric_state": "Valor numérico", "report_silence": "Sem relatórios da entidade"}},
+    "state_operator": {"options": {"equals": "Corresponde", "not_equals": "Não corresponde"}},
+    "numeric_operator": {"options": {"greater_than": "Maior que (>)", "greater_or_equal": "Maior ou igual (>=)", "less_than": "Menor que (<)", "less_or_equal": "Menor ou igual (<=)", "equals": "Igual (=)", "not_equals": "Diferente (!=)"}},
+    "condition_next_action": {"options": {"and": "Adicionar uma condição E", "or": "Iniciar alternativa OU", "finish": "Concluir esta expressão"}},
+    "condition_editor_action": {"options": {"add": "Adicionar uma condição", "remove": "Remover uma condição salva", "finish": "Manter estas condições e continuar"}},
+    "cross_midnight_policy": {"options": {"started_day": "Dia de início", "ended_day": "Dia de término", "split_at_midnight": "Dividir na meia-noite local"}},
+    "report_period": {"options": {"current_day": "Hoje", "current_week": "Semana atual", "current_month": "Mês atual"}},
+    "metric": {"options": {"total_duration": "Duração total da atividade", "session_count": "Quantidade de sessões", "current_session_duration": "Duração da sessão atual", "last_session_duration": "Duração da sessão concluída mais recente", "last_session_start": "Início da sessão concluída mais recente", "last_session_end": "Término da sessão concluída mais recente", "time_since_last_session": "Tempo desde a sessão concluída mais recente", "average_start_time": "Horário médio de início", "average_end_time": "Horário médio de término", "average_daily_duration": "Duração média por dia", "average_session_duration": "Duração média das sessões", "longest_session_duration": "Duração da sessão mais longa", "shortest_session_duration": "Duração da sessão mais curta", "weekday_highest_total": "Dia da semana com mais atividade"}},
+    "duration_unit": {"options": {"s": "Segundos", "min": "Minutos", "h": "Horas"}}
   }
 }

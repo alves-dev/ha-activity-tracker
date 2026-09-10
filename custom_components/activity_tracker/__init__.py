@@ -5,9 +5,15 @@ from __future__ import annotations
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .configuration import migrate_monitor_data
 from .const import DOMAIN, PLATFORMS
+from .panel import async_register_panel
 from .runtime import ActivityTrackerRuntime
+
+
+async def async_setup(hass: HomeAssistant, _config: dict) -> bool:
+    """Set up integration-wide read-only UI services."""
+    await async_register_panel(hass)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -21,16 +27,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Migrate Cartesian report selections to period-specific selections."""
-    if entry.version > 2:
-        return False
-    if entry.version < 2:
-        hass.config_entries.async_update_entry(
-            entry,
-            data=migrate_monitor_data(entry.data),
-            version=2,
-        )
-    return True
+    """Reject retired monitor contracts; unified monitors are config version 3."""
+    return entry.version == 3
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

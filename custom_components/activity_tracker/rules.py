@@ -1,0 +1,202 @@
+"""Pure evaluation for unified activity rules."""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from datetime import datetime, timedelta
+from decimal import Decimal, InvalidOperation
+from typing import Any
+
+STATE_UNAVAILABLE = "unavailable"
+STATE_UNKNOWN = "unknown"
+
+GROUP_ALL = "all"
+GROUP_ANY = "any"
+CONDITION_STATE = "state"
+CONDITION_REPORT_SILENCE = "report_silence"
+CONDITION_TEMPLATE = "template"
+CONDITION_NUMERIC_STATE = "numeric_state"
+
+
+def referenced_entity_ids(expression: Mapping[str, Any]) -> set[str]:
+    """Return every entity used by a valid expression."""
+    if _group_children(expression) is not None:
+        return set().union(
+            *(referenced_entity_ids(child) for child in _group_children(expression))
+        )
+    entity_id = expression.get("entity_id")
+    return {entity_id} if isinstance(entity_id, str) else set()
+
+
+def template_values(expression: Mapping[str, Any]) -> set[str]:
+    """Return every valid Home Assistant template used by an expression."""
+    children = _group_children(expression)
+    if children is not None:
+        return set().union(*(template_values(child) for child in children))
+    value = expression.get("value_template")
+    if expression.get("type") != CONDITION_TEMPLATE or not isinstance(value, str):
+        return set()
+    return {value}
+
+
+def expression_matches(
+    expression: Mapping[str, Any],
+    states: Mapping[str, Any],
+    now: datetime,
+    template_results: Mapping[str, bool] | None = None,
+) -> bool:
+    """Return whether an expression is true from the observed source states."""
+    children = _group_children(expression)
+    if children is not None:
+        if expression.get("operator") == GROUP_ALL:
+            return bool(children) and all(
+                expression_matches(child, states, now, template_results)
+                for child in children
+            )
+        return any(
+            expression_matches(child, states, now, template_results)
+            for child in children
+        )
+    return _condition_matches(expression, states, now, template_results)
+
+
+def expression_next_deadline(  # noqa: PLR0911
+    expression: Mapping[str, Any], states: Mapping[str, Any], now: datetime
+) -> datetime | None:
+    """Return the earliest future instant at which a leaf may become true."""
+    children = _group_children(expression)
+    if children is not None:
+        deadlines = [
+            deadline
+            for child in children
+            if (deadline := expression_next_deadline(child, states, now)) is not None
+        ]
+        return min(deadlines, default=None)
+
+    entity_id = expression.get("entity_id")
+    if not isinstance(entity_id, str):
+        return None
+    state = states.get(entity_id)
+    if state is None:
+        return None
+    seconds = _positive_seconds(expression.get("for_seconds"))
+    if seconds == 0:
+        return None
+    if expression.get("type") == CONDITION_REPORT_SILENCE:
+        reported_at = _reported_at(state)
+        if reported_at is None:
+            return None
+        deadline = reported_at + timedelta(seconds=seconds)
+        return deadline if deadline > now else None
+    if expression.get("type") == CONDITION_NUMERIC_STATE:
+        matches = _numeric_value_matches(expression, state)
+    elif expression.get("type") == CONDITION_STATE:
+        matches = _state_value_matches(expression, str(getattr(state, "state", "")))
+    else:
+        matches = False
+    if not matches:
+        return None
+    changed_at = _changed_at(state)
+    if changed_at is None:
+        return None
+    deadline = changed_at + timedelta(seconds=seconds)
+    return deadline if deadline > now else None
+
+
+def _group_children(expression: Mapping[str, Any]) -> list[Mapping[str, Any]] | None:
+    children = expression.get("conditions")
+    if not isinstance(children, list):
+        return None
+    return [child for child in children if isinstance(child, Mapping)]
+
+
+def _condition_matches(  # noqa: PLR0911
+    condition: Mapping[str, Any],
+    states: Mapping[str, Any],
+    now: datetime,
+    template_results: Mapping[str, bool] | None = None,
+) -> bool:
+    if condition.get("type") == CONDITION_TEMPLATE:
+        value = condition.get("value_template")
+        return isinstance(value, str) and bool((template_results or {}).get(value))
+    entity_id = condition.get("entity_id")
+    if not isinstance(entity_id, str):
+        return False
+    state = states.get(entity_id)
+    if state is None:
+        return False
+    if condition.get("type") == CONDITION_REPORT_SILENCE:
+        reported_at = _reported_at(state)
+        seconds = _positive_seconds(condition.get("for_seconds"))
+        return (
+            reported_at is not None
+            and seconds > 0
+            and now >= reported_at + timedelta(seconds=seconds)
+        )
+    if condition.get("type") == CONDITION_NUMERIC_STATE:
+        matches = _numeric_value_matches(condition, state)
+    elif condition.get("type") == CONDITION_STATE:
+        matches = _state_value_matches(condition, str(getattr(state, "state", "")))
+    else:
+        matches = False
+    if not matches:
+        return False
+    seconds = _positive_seconds(condition.get("for_seconds"))
+    if seconds == 0:
+        return True
+    changed_at = _changed_at(state)
+    return changed_at is not None and now >= changed_at + timedelta(seconds=seconds)
+
+
+def _state_value_matches(condition: Mapping[str, Any], value: str) -> bool:
+    values = condition.get("states")
+    if not isinstance(values, list) or not all(
+        isinstance(item, str) for item in values
+    ):
+        return False
+    matches = value in values
+    return not matches if condition.get("operator") == "not_equals" else matches
+
+
+def _numeric_value_matches(condition: Mapping[str, Any], state: Any) -> bool:
+    """Compare a numeric state or attribute using exact decimal arithmetic."""
+    attributes = getattr(state, "attributes", {})
+    if not isinstance(attributes, Mapping):
+        attributes = {}
+    raw_value = (
+        attributes.get(condition.get("attribute"))
+        if condition.get("attribute")
+        else getattr(state, "state", None)
+    )
+    try:
+        observed = Decimal(str(raw_value))
+        target = Decimal(str(condition.get("value")))
+        if not observed.is_finite() or not target.is_finite():
+            return False
+    except InvalidOperation, TypeError, ValueError:
+        return False
+    operator = condition.get("operator", "greater_than")
+    return {
+        "greater_than": observed > target,
+        "greater_or_equal": observed >= target,
+        "less_than": observed < target,
+        "less_or_equal": observed <= target,
+        "equals": observed == target,
+        "not_equals": observed != target,
+    }.get(operator, False)
+
+
+def _positive_seconds(value: object) -> int:
+    return value if isinstance(value, int) and value > 0 else 0
+
+
+def _changed_at(state: Any) -> datetime | None:
+    changed_at = getattr(state, "last_changed", None)
+    return changed_at if isinstance(changed_at, datetime) else None
+
+
+def _reported_at(state: Any) -> datetime | None:
+    reported_at = getattr(state, "last_reported", None)
+    if isinstance(reported_at, datetime):
+        return reported_at
+    return _changed_at(state)

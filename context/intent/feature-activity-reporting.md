@@ -2,48 +2,27 @@
 
 ## What
 
-Each monitor can expose user-selected measurements, including activity duration, session count, current and latest sessions, timing, averages, extremes, and weekday summaries. Reports cover today, the current week, the current month, and user-selected rolling calendar-day ranges.
-
-## Why
-
-Users need concise answers to both current and historical questions about activity, such as how long something was used, how frequently it happened, and when it last occurred.
+Each monitor exposes only the report and monitor-wide measurements selected by
+the user. Reports cover current local day, week, month, and selected closed
+historical days.
 
 ## Acceptance Criteria
 
-- [ ] Users can select which measurements a monitor exposes for each report period.
-- [ ] Duration and count reports are available for selected calendar and rolling periods.
-- [ ] Current activity and latest completed activity information are available when relevant.
-- [ ] A report indicates when a requested rolling range exceeds retained history.
-
-## Delivered Behavior (2026-08-27)
-
-- [x] Reports distinguish observed-to-date values from periods without sufficient
-  complete history, with a user-actionable reason.
-- [x] Week and rolling-day reports use the available Home Assistant local calendar
-  configuration, with Monday as the documented platform fallback.
-
-## Delivered Behavior (2026-08-28)
-
-- [x] Unavailable report entities provide a stable reason and a non-sensitive,
-  user-actionable next step.
-- [x] Each monitor can publish duration reports in hours, minutes, or seconds
-  without changing its retained accounting data.
-- [x] Period-aware measurements can be selected independently for each calendar
-  or rolling-day report period.
+- [x] Users select report metrics independently for every report period.
+- [x] `Last 1` is yesterday and `Last 2` is the day before yesterday.
+- [x] Average start and end times use circular local-time averages.
+- [x] Time since the latest completed session uses the selected duration unit.
+- [x] Unknown-duration reporting is absent.
+- [x] The current-day total is a `total_increasing` sensor with `sum`
+  statistics; other totals are measurements.
 
 ## Related
 
 - [Project Intent](project-intent.md)
-- [Decision: Home Assistant Config-Entry Integration](../decisions/002-home-assistant-integration-architecture.md)
-- [Decision: Compact Daily Summary Storage](../decisions/004-compact-daily-summary-storage.md)
-- [Decision: Data Quality and Period Completeness](../decisions/007-data-quality-and-period-completeness.md)
-- [Decision: Calendar Boundaries and Local Time](../decisions/009-calendar-boundaries.md)
+- [Decision: Session Day Attribution](../decisions/015-session-day-attribution-and-report-periods.md)
 - [Pattern: Selected Metric Entity Factory](../knowledge/patterns/selected-metric-entity-factory.md)
-- [Decision: Administrative History Actions and Redacted Diagnostics](../decisions/010-administrative-history-and-diagnostics.md)
-- [Decision: Per-Monitor Duration Presentation Unit](../decisions/011-duration-presentation-unit.md)
-- [Decision: Period-Specific Report Sensor Selection](../decisions/012-period-specific-report-sensor-selection.md)
 
 ## Status
 
-- **Created**: 2026-08-27 (Phase: Intent)
-- **Status**: Active (already implemented)
+- **Created**: 2026-08-27
+- **Status**: Active; delivered on 2026-09-09

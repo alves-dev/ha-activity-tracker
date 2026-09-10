@@ -56,4 +56,4 @@ keeps entities safely unavailable if a payload cannot be loaded.
 ## Status
 
 - **Created**: 2026-08-27
-- **Status**: Accepted
+- **Status**: Superseded by Decision 016 on 2026-09-09

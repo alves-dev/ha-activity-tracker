@@ -2,235 +2,49 @@
   "title": "Activity Tracker",
   "config": {
     "step": {
-      "user": {
-        "title": "What would you like to track?",
-        "description": "A monitor watches one activity rule and creates its own Home Assistant device. {monitor_examples}",
-        "data": {
-          "monitor_type": "How should activity be detected?"
-        },
-        "data_description": {
-          "monitor_type": "Each choice has a short explanation. Select the one that best matches the activity you want to measure."
-        }
-      },
-      "source": {
-        "title": "Choose the activity source",
-        "description": "{monitor_type_guidance}\n\n{phone_entity_validation}",
-        "data": {
-          "name": "Name this monitor",
-          "device_id": "Companion App device",
-          "entity_id": "Entity to watch",
-          "active_states": "States that mean the activity is happening",
-          "zone_entity_id": "Zone that counts as activity",
-          "person_entity_id": "Person to identify this monitor",
-          "area_id": "Area that counts as activity",
-          "presence_entity_id": "Sensor that detects presence",
-          "value_source": "Where to read the application",
-          "value_attribute": "Attribute containing the application ID",
-          "label_attribute": "Attribute containing the application name (optional)"
-        },
-        "data_description": {
-          "name": "A clear name used for this monitor device and its entities, for example “Living room TV” or “Barber visits” .",
-          "device_id": "Choose one Home Assistant Companion App device. Activity Tracker finds its Interactive and Last update trigger entities automatically.",
-          "entity_id": "The entity whose state is observed. Activity Tracker never changes it.",
-          "active_states": "Enter exact state values separated by commas, for example: on, playing, paused. Moving between these values keeps one session open.",
-          "zone_entity_id": "Only this zone counts as activity. Home, away, and every other zone do not count.",
-          "person_entity_id": "Used for identity and naming only. The selected presence sensor is the source of truth for activity.",
-          "area_id": "Used for the area identity and name. An area alone does not report who is present.",
-          "presence_entity_id": "The binary sensor that reports whether the selected person is in the selected area. It is normally active when its state is on.",
-          "value_source": "Use Entity state when it is the application identifier. Use Entity attribute when the identifier is stored in an attribute.",
-          "value_attribute": "Required for an attribute source. Prefer a stable identifier such as a package name when available.",
-          "label_attribute": "Optional friendly name shown in Home Assistant. Changing this label does not create a different tracked application."
-        }
-      },
-      "behavior": {
-        "title": "Choose session behavior",
-        "description": "These choices apply only to this monitor. They determine which completed activity is retained and how short interruptions are handled.",
-        "data": {
-          "duration_unit": "Duration display format",
-          "phone_silence_tolerance_seconds": "End after no phone communication (seconds)",
-          "retention_days": "Keep reports for (days)",
-          "minimum_session_seconds": "Ignore sessions shorter than (seconds)",
-          "unavailable_behavior": "If the source becomes unavailable",
-          "unavailable_tolerance_seconds": "Wait before handling an unavailable source (seconds)",
-          "merge_gap_seconds": "Ignore inactive gaps shorter than (seconds)",
-          "import_recorder_history": "Import previous history from Recorder"
-        },
-        "data_description": {
-          "duration_unit": "Choose how duration sensors are shown. This affects only the display, not tracked time or history.",
-          "phone_silence_tolerance_seconds": "While the screen is interactive, treat this many seconds without a Companion App report as an unavailable source. New phone monitors default to 1800 seconds.",
-          "retention_days": "Number of calendar days to keep compact daily summaries. The minimum is 7 days; older summaries are deleted during cleanup.",
-          "minimum_session_seconds": "Completed sessions shorter than this many seconds are discarded. Use 0 to keep every completed session.",
-          "unavailable_behavior": "Choose whether an unavailable or unknown source ends activity, remains pending briefly, or is reported as unknown time.",
-          "unavailable_tolerance_seconds": "How long an unavailable source may remain pending before the selected unavailable behavior applies. Use 0 to apply it immediately.",
-          "merge_gap_seconds": "For brief observed inactive gaps such as GPS noise. The gap itself is not activity. Use 0 to end the session immediately.",
-          "import_recorder_history": "Rebuild retained daily summaries from the source entity's existing Recorder history. This can take a moment and starts from the configured retention period."
-        }
-      },
-      "periods": {
-        "title": "Choose report periods",
-        "description": "Select one or more periods for report sensors. A rolling period means local calendar dates, not an exact number of 24-hour blocks.",
-        "data": {
-          "periods": "Calendar periods to report",
-          "rolling_days": "Extra rolling periods (days)"
-        },
-        "data_description": {
-          "periods": "Today starts at local midnight. Current week and month follow Home Assistant's local calendar.",
-          "rolling_days": "Optional positive whole-day values separated by commas, for example: 7, 30, 35. “35” means today plus the previous 34 local dates."
-        }
-      },
-      "period_metrics": {
-        "title": "Choose sensors to create",
-        "description": "Select the report sensors to create for {period}.",
-        "data": {
-          "period_metrics": "Reports and sensors to create for this period"
-        },
-        "data_description": {
-          "period_metrics": "Each selected metric creates an entity only for this report period."
-        }
-      },
-      "metrics": {
-        "title": "Choose monitor-wide sensors",
-        "description": "Optionally select sensors that do not use a report period.",
-        "data": {
-          "enabled_metrics": "Monitor-wide sensors to create"
-        },
-        "data_description": {
-          "enabled_metrics": "Current, latest-session, and weekday sensors create one entity for this monitor."
-        }
-      },
-      "review": {
-        "title": "Review this monitor",
-        "description": "Create {name} using {source}. It will have {metrics} selected metric type(s) across these periods: {periods}. You can change session behavior later in Configure."
-      }
+      "user": {"title": "What would you like to track?", "description": "A monitor observes one activity rule and creates its own Home Assistant device.", "data": {"template": "How would you like to begin?"}},
+      "source": {"title": "Choose the activity source", "description": "Name the monitor. Zone presence also needs the tracked person or device and the zone.", "data": {"name": "Name this monitor", "entity_id": "Tracked person or device", "zone_entity_id": "Zone"}, "data_description": {"name": "A clear name for this monitor device and its entities.", "entity_id": "The person or device tracker whose state is observed.", "zone_entity_id": "Only this zone counts as activity."}},
+      "template_rule": {"title": "Define template rule", "description": "Both templates must render a Home Assistant boolean. Current preview — start: {start_result}; stop: {stop_result}.", "data": {"start_template": "Start when", "stop_template": "Stop when"}},
+      "start_condition": {"title": "Manage start conditions", "description": "Saved conditions: {conditions}\\n\\nCurrent snapshot: {status}", "data": {"editor_action": "Action"}},
+      "stop_condition": {"title": "Manage stop conditions", "description": "Saved conditions: {conditions}\\n\\nCurrent snapshot: {status}", "data": {"editor_action": "Action"}},
+      "condition": {"title": "Add condition", "description": "Define the new condition.", "data": {"entity_id": "Entity", "condition_type": "Condition", "attribute": "Attribute (optional)", "states": "States", "numeric_value": "Numeric value", "operator": "Match", "numeric_operator": "Comparison", "for_seconds": "Remain for (seconds)", "next_action": "After adding"}},
+      "remove_condition": {"title": "Remove condition", "description": "Saved conditions: {conditions}", "data": {"condition_id": "Condition to remove"}},
+      "behavior": {"title": "Choose session behavior", "description": "These choices apply to this monitor's completed sessions and presentation.", "data": {"duration_unit": "Duration display unit", "retention_days": "Keep reports for (days)", "minimum_session_seconds": "Ignore sessions shorter than (seconds)", "cross_midnight_policy": "Session crossing midnight"}, "data_description": {"duration_unit": "Accounting remains exact seconds; this selects the sensor display unit.", "retention_days": "Number of local calendar days to retain.", "minimum_session_seconds": "Use 0 to keep every completed session.", "cross_midnight_policy": "Started day assigns all duration to the date it starts. Ended day assigns all duration to the date it ends. Split at local midnight assigns each real fragment and one session to every participating date."}},
+      "periods": {"title": "Choose report periods", "description": "Current periods are observed to date. Last 1 is yesterday and Last 2 is the day before yesterday.", "data": {"periods": "Current calendar periods", "previous_days": "Additional closed days (for example: 1, 2, 7)"}},
+      "period_metrics": {"title": "Choose report sensors", "description": "Select at least one report sensor for {period}.", "data": {"period_metrics": "Report sensors"}},
+      "metrics": {"title": "Choose monitor-wide sensors", "description": "These optional sensors do not have a report period.", "data": {"enabled_metrics": "Monitor-wide sensors"}},
+      "review": {"title": "Review this monitor", "description": "Create {name} using {source}. It will have {metrics} selected metric type(s) for: {periods}.\\n\\nStart: {start_conditions}\\nStop: {stop_conditions}\\n\\nCurrent snapshot: {status}"}
     },
-    "error": {
-      "required": "Provide at least one value before continuing.",
-      "invalid_rolling_days": "Use only positive whole numbers separated by commas, for example: 7, 30, 35.",
-      "mobile_app_phone_entities_missing": "This device must have enabled Interactive and Last update trigger entities from the Home Assistant Companion App."
-    }
+    "error": {"required": "Provide at least one value before continuing.", "invalid_previous_days": "Use positive whole numbers separated by commas, for example: 1, 2, 7.", "condition_required": "Choose a saved condition to remove.", "conditions_required": "Keep or add at least one condition before continuing.", "invalid_template": "Enter a valid Home Assistant template."}
   },
   "options": {
     "step": {
-      "init": {
-        "title": "Edit monitor",
-        "description": "Update the activity rule, source, reports, sensors, and session behavior. At the end, choose what to do with existing history.",
-        "data": {
-          "monitor_type": "How should activity be detected?"
-        },
-        "data_description": {
-          "monitor_type": "You may change the monitor type as well as its source. Changing the rule can make existing history incomparable."
-        }
-      },
-      "source": {
-        "title": "Choose the activity source",
-        "description": "{monitor_type_guidance}\n\n{phone_entity_validation}",
-        "data": {"name": "Name this monitor", "device_id": "Companion App device", "entity_id": "Entity to watch", "active_states": "States that mean the activity is happening", "zone_entity_id": "Zone that counts as activity", "person_entity_id": "Person to identify this monitor", "area_id": "Area that counts as activity", "presence_entity_id": "Sensor that detects presence", "value_source": "Where to read the application", "value_attribute": "Attribute containing the application ID", "label_attribute": "Attribute containing the application name (optional)"},
-        "data_description": {"name": "A clear name used for this monitor device and its entities.", "device_id": "Choose one Home Assistant Companion App device. Activity Tracker finds its Interactive and Last update trigger entities automatically.", "entity_id": "The entity whose state is observed. Activity Tracker never changes it.", "active_states": "Enter exact state values separated by commas. Moving between these values keeps one session open.", "zone_entity_id": "Only this zone counts as activity.", "person_entity_id": "Used for identity and naming only. The selected presence sensor determines activity.", "area_id": "Used for the area identity and name. An area alone does not report who is present.", "presence_entity_id": "The binary sensor that reports whether the selected person is in the selected area.", "value_source": "Choose whether the application identifier comes from the entity state or one of its attributes.", "value_attribute": "Required when the application identifier is stored in an attribute.", "label_attribute": "Optional friendly application name shown in Home Assistant."}
-      },
-      "behavior": {
-        "title": "Choose session behavior",
-        "description": "These choices apply to future observations for this monitor.",
-        "data": {"duration_unit": "Duration display format", "phone_silence_tolerance_seconds": "End after no phone communication (seconds)", "retention_days": "Keep reports for (days)", "minimum_session_seconds": "Ignore sessions shorter than (seconds)", "unavailable_behavior": "If the source becomes unavailable", "unavailable_tolerance_seconds": "Wait before handling an unavailable source (seconds)", "merge_gap_seconds": "Ignore inactive gaps shorter than (seconds)"},
-        "data_description": {"duration_unit": "Choose how duration sensors are shown. This affects only the display, not tracked time or history.", "phone_silence_tolerance_seconds": "While the screen is interactive, treat this many seconds without a Companion App report as an unavailable source. New phone monitors default to 1800 seconds.", "retention_days": "Number of calendar days to retain. A longer report period cannot be reliable if it exceeds this value.", "minimum_session_seconds": "Discard completed sessions shorter than this duration. Set to 0 to keep all completed sessions.", "unavailable_behavior": "How an unknown or unavailable source affects the in-progress session.", "unavailable_tolerance_seconds": "Wait this many seconds before applying the unavailable behavior.", "merge_gap_seconds": "Treat a brief observed inactive interval as part of one visit or use session. The gap is excluded from duration."}
-      },
-      "periods": {
-        "title": "Choose report periods",
-        "description": "Select one or more periods for report sensors.",
-        "data": {"periods": "Calendar periods to report", "rolling_days": "Extra rolling periods (days)"},
-        "data_description": {"periods": "Today starts at local midnight. Current week and month follow Home Assistant's local calendar.", "rolling_days": "Optional positive whole-day values separated by commas, for example: 7, 30, 35."}
-      },
-      "period_metrics": {
-        "title": "Choose sensors to create",
-        "description": "Select the report sensors to create for {period}.",
-        "data": {"period_metrics": "Reports and sensors to create for this period"},
-        "data_description": {"period_metrics": "Each selected metric creates an entity only for this report period."}
-      },
-      "metrics": {
-        "title": "Choose monitor-wide sensors",
-        "description": "Optionally select sensors that do not use a report period.",
-        "data": {"enabled_metrics": "Monitor-wide sensors to create"},
-        "data_description": {"enabled_metrics": "Current, latest-session, and weekday sensors create one entity for this monitor."}
-      },
-      "history": {
-        "title": "Choose what to do with history",
-        "description": "Use reimport when the changed rule should be applied to the available Recorder history. It replaces summaries within the retention period.",
-        "data": {"history_action": "Existing history"},
-        "data_description": {"history_action": "Keep preserves current summaries; clear deletes them; reimport rebuilds them using the configured source and Recorder history."}
-      },
-      "confirm_history": {
-        "title": "Confirm history action",
-        "description": "Confirm {action} before changing retained history. Clear removes all retained summaries; reimport replaces only the Recorder-backed range.",
-        "data": {"confirm_history_action": "I understand this changes retained history"}
-      }
+      "init": {"title": "Edit monitor", "description": "Edit the template, source, conditions, reports, sensors, or behavior.", "data": {"template": "How would you like to begin?"}},
+      "source": {"title": "Choose the activity source", "description": "Name the monitor. Zone presence also needs the tracked person or device and the zone.", "data": {"name": "Name this monitor", "entity_id": "Tracked person or device", "zone_entity_id": "Zone"}},
+      "template_rule": {"title": "Define template rule", "description": "Both templates must render a Home Assistant boolean. Current preview — start: {start_result}; stop: {stop_result}.", "data": {"start_template": "Start when", "stop_template": "Stop when"}},
+      "start_condition": {"title": "Manage start conditions", "description": "Saved conditions: {conditions}\\n\\nCurrent snapshot: {status}", "data": {"editor_action": "Action"}},
+      "stop_condition": {"title": "Manage stop conditions", "description": "Saved conditions: {conditions}\\n\\nCurrent snapshot: {status}", "data": {"editor_action": "Action"}},
+      "condition": {"title": "Add condition", "description": "Define the new condition.", "data": {"entity_id": "Entity", "condition_type": "Condition", "attribute": "Attribute (optional)", "states": "States", "numeric_value": "Numeric value", "operator": "Match", "numeric_operator": "Comparison", "for_seconds": "Remain for (seconds)", "next_action": "After adding"}},
+      "remove_condition": {"title": "Remove condition", "description": "Saved conditions: {conditions}", "data": {"condition_id": "Condition to remove"}},
+      "behavior": {"title": "Choose session behavior", "description": "These choices apply to this monitor's completed sessions and presentation.", "data": {"duration_unit": "Duration display unit", "retention_days": "Keep reports for (days)", "minimum_session_seconds": "Ignore sessions shorter than (seconds)", "cross_midnight_policy": "Session crossing midnight"}},
+      "periods": {"title": "Choose report periods", "description": "Last 1 is yesterday and Last 2 is the day before yesterday.", "data": {"periods": "Current calendar periods", "previous_days": "Additional closed days (for example: 1, 2, 7)"}},
+      "period_metrics": {"title": "Choose report sensors", "description": "Select at least one report sensor for {period}.", "data": {"period_metrics": "Report sensors"}},
+      "metrics": {"title": "Choose monitor-wide sensors", "description": "These optional sensors do not have a report period.", "data": {"enabled_metrics": "Monitor-wide sensors"}},
+      "review": {"title": "Review this monitor", "description": "Save {name} using {source}. It will have {metrics} selected metric type(s) for: {periods}.\\n\\nStart: {start_conditions}\\nStop: {stop_conditions}\\n\\nCurrent snapshot: {status}"},
+      "confirm_history": {"title": "Confirm history clear", "description": "Changing an activity rule or its midnight policy makes existing summaries incompatible. Confirm to clear retained history before saving.", "data": {"confirm_history_action": "I understand that retained history will be cleared"}}
     },
-    "error": {
-      "confirmation_required": "Select the confirmation before continuing.",
-      "mobile_app_phone_entities_missing": "This device must have enabled Interactive and Last update trigger entities from the Home Assistant Companion App."
-    }
+    "error": {"confirmation_required": "Select the confirmation before continuing.", "condition_required": "Choose a saved condition to remove.", "conditions_required": "Keep or add at least one condition before continuing.", "invalid_template": "Enter a valid Home Assistant template."}
   },
   "selector": {
-    "monitor_type": {
-      "options": {
-        "entity_state": "Entity state — track an entity while it is in selected states.",
-        "zone": "Person or device in a zone — track visits to one Home Assistant zone.",
-        "area_presence": "Person in an internal area — use a presence binary sensor for one area.",
-        "foreground_application": "Foreground application — track the app currently reported by an entity.",
-        "phone_in_use": "Mobile device in use — track an Android Companion App device while its screen is interactive and communicating.",
-        "generic": "Custom state rule — track any entity using selected active states."
-      }
-    },
-    "application_value_source": {
-      "options": {
-        "state": "Entity state — the application value is the entity's state.",
-        "attribute": "Entity attribute — the application value is stored in an attribute."
-      }
-    },
-    "report_period": {
-      "options": {
-        "current_day": "Today — from local midnight until now.",
-        "current_week": "Current week — using Home Assistant's local calendar.",
-        "current_month": "Current month — using Home Assistant's local calendar."
-      }
-    },
-    "metric": {
-      "options": {
-        "total_duration": "Total activity duration",
-        "session_count": "Number of sessions",
-        "current_session_duration": "Current session duration",
-        "last_session_duration": "Most recent completed session duration",
-        "last_session_start": "Most recent completed session start time",
-        "last_session_end": "Most recent completed session end time",
-        "days_since_last_session": "Days since the most recent completed session",
-        "average_daily_duration": "Average activity duration per day",
-        "average_session_duration": "Average session duration",
-        "longest_session_duration": "Longest session duration",
-        "shortest_session_duration": "Shortest session duration",
-        "first_activity_time": "First activity time today",
-        "last_activity_time": "Last activity time today",
-        "weekday_highest_total": "Weekday with the most activity",
-        "unknown_duration": "Time whose activity status is unknown"
-      }
-    },
-    "unavailable_behavior": {
-      "options": {
-        "end": "End the session — stop activity when the source is unavailable.",
-        "pending": "Keep it pending — wait for the source to return before deciding.",
-        "unknown": "Mark the time as unknown — preserve the interval as uncertain."
-      }
-    },
-    "duration_unit": {
-      "options": {
-        "s": "Seconds",
-        "min": "Minutes",
-        "h": "Hours"
-      }
-    },
-    "history_action": {
-      "options": {
-        "keep": "Keep existing history — use the new rule only for future activity.",
-        "clear": "Clear existing history — start collecting again now.",
-        "reimport": "Reimport from Recorder — rebuild retained history with the new rule."
-      }
-    }
+    "template": {"options": {"zone_presence": "Zone presence", "custom": "Custom rule", "template_rule": "Template rule"}},
+    "condition_type": {"options": {"state": "Entity state", "numeric_state": "Numeric value", "report_silence": "No entity reports"}},
+    "state_operator": {"options": {"equals": "Matches", "not_equals": "Does not match"}},
+    "numeric_operator": {"options": {"greater_than": "Greater than (>)", "greater_or_equal": "Greater than or equal (>=)", "less_than": "Less than (<)", "less_or_equal": "Less than or equal (<=)", "equals": "Equals (=)", "not_equals": "Does not equal (!=)"}},
+    "condition_next_action": {"options": {"and": "Add an AND condition", "or": "Start an OR alternative", "finish": "Finish this expression"}},
+    "condition_editor_action": {"options": {"add": "Add a condition", "remove": "Remove a saved condition", "finish": "Keep these conditions and continue"}},
+    "cross_midnight_policy": {"options": {"started_day": "Started day", "ended_day": "Ended day", "split_at_midnight": "Split at local midnight"}},
+    "report_period": {"options": {"current_day": "Today", "current_week": "Current week", "current_month": "Current month"}},
+    "metric": {"options": {"total_duration": "Total activity duration", "session_count": "Session count", "current_session_duration": "Current session duration", "last_session_duration": "Most recent completed session duration", "last_session_start": "Most recent completed session start", "last_session_end": "Most recent completed session end", "time_since_last_session": "Time since the most recent completed session", "average_start_time": "Average activity start time", "average_end_time": "Average activity end time", "average_daily_duration": "Average activity duration per day", "average_session_duration": "Average session duration", "longest_session_duration": "Longest session duration", "shortest_session_duration": "Shortest session duration", "weekday_highest_total": "Weekday with the most activity"}},
+    "duration_unit": {"options": {"s": "Seconds", "min": "Minutes", "h": "Hours"}}
   }
 }
