@@ -29,7 +29,7 @@ Outcomes to be documented as project evolves.
 - [Decision: Data Quality and Period Completeness](007-data-quality-and-period-completeness.md)
 - [Decision: Storage Migration and Import Safety](008-storage-migration-and-import-safety.md)
 - [Decision: Calendar Boundaries and Local Time](009-calendar-boundaries.md)
-- [Pattern: Calendar-Day Session Aggregation](../knowledge/patterns/calendar-day-session-aggregation.md)
+- [Pattern: Compact Daily Summary Accounting](../knowledge/patterns/compact-daily-summary-accounting.md)
 
 ## Status
 

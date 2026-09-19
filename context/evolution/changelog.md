@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-09-19 — Context Mesh audit and current-state alignment
+
+- Audited the existing integration, tests, README, manifest, and project
+  configuration against the Context Mesh separation rules.
+- Confirmed four active product capabilities: flexible activity monitoring,
+  guided monitor management, activity reporting, and durable activity history.
+- Added user-value explanations to each active feature intent.
+- Added reusable patterns for compact daily-summary accounting and the
+  server-owned sidebar draft editor, with code examples and file links.
+- Repaired broken context links and marked legacy Recorder, mobile-device,
+  foreground-application, and pre-unified-rule decisions as historical or
+  superseded where the current code no longer implements them.
+- Updated current rule-edit documentation to reflect retained-history
+  preservation.
+
 ## 2026-09-10
 
 - Replaced the Activity Rules native-flow host with a complete draft editor.

@@ -59,4 +59,6 @@ import-boundary time marks summaries incomplete.
 ## Status
 
 - **Created**: 2026-08-27
-- **Status**: Accepted
+- **Status**: Superseded by Decisions 014, 015, and 016 on 2026-09-09
+- **Note**: Unknown-duration and Recorder-boundary quality semantics described
+  here are historical design context, not current behavior.

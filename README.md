@@ -62,9 +62,9 @@ integration configuration page is only for initial setup.
 
 Choose at least one report period and one metric for every selected period.
 Monitor-wide metrics, such as current-session duration and time since the latest
-session, are optional. Editing a rule or cross-midnight policy asks for explicit
-confirmation before clearing incompatible retained summaries. There is no
-configuration, entity, storage, or Recorder-history migration from prior
+session, are optional. Editing a rule or cross-midnight policy preserves
+retained summaries and applies the new behavior to future evaluations. There is
+no configuration, entity, storage, or Recorder-history migration from prior
 Activity Tracker releases.
 
 Choose **Template rule** when the activity needs an expression beyond the guided

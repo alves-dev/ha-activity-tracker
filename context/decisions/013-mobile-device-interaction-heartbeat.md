@@ -65,12 +65,11 @@ established unavailable-source policy.
 
 - [Feature: Flexible Activity Monitoring](../intent/feature-flexible-activity-monitoring.md)
 - [Feature: Guided Monitor Management](../intent/feature-guided-monitor-management.md)
-- [Decision: Real-Time Session Accounting](003-real-time-session-accounting.md)
-- [Decision: Interruption and Session State Machine](006-interruption-and-session-state-machine.md)
-- [Pattern: Activity State Classification](../knowledge/patterns/activity-state-classification.md)
+- [Decision: Unified Activity Rules and Source Health](014-unified-activity-rules.md)
 - [Pattern: Multi-Step Configuration Flow](../knowledge/patterns/multi-step-configuration-flow.md)
 
 ## Status
 
 - **Created**: 2026-09-08
-- **Status**: Superseded by Decision 014 on 2026-09-09
+- **Status**: Superseded by Decision 014 on 2026-09-09; the mobile-device
+  monitor is not part of the current unified-rule product.

@@ -5,6 +5,11 @@
 Completed activity is retained as compact daily summaries for a user-selected
 number of local calendar days.
 
+## Why
+
+Users retain useful activity trends across restarts and beyond transient live
+state, while the product avoids storing a detailed permanent session archive.
+
 ## Acceptance Criteria
 
 - [x] Completed activity remains available for the configured retention period.
@@ -12,8 +17,8 @@ number of local calendar days.
   or split at actual local midnight.
 - [x] Split attribution records one session for every participating day.
 - [x] Short completed sessions can be excluded by a user-selected threshold.
-- [x] New monitors begin with empty retained history and never import Recorder
-  history.
+- [x] New monitors begin with empty retained history and do not claim activity
+  from before they began observing.
 
 ## Related
 

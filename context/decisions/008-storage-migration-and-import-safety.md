@@ -51,7 +51,7 @@ keeps entities safely unavailable if a payload cannot be loaded.
 
 - [Feature: Durable Activity History](../intent/feature-durable-activity-history.md)
 - [Decision: Compact Daily Summary Storage](004-compact-daily-summary-storage.md)
-- [Decision: Recorder History Reconstruction](005-recorder-history-reconstruction.md)
+- [Decision: Unified-Rule Data Reset and No Recorder Import](016-unified-rule-data-reset-and-no-recorder-import.md)
 
 ## Status
 
