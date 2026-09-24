@@ -6,7 +6,7 @@
 
 [![Quality Gate](https://sonar.alves-dev.com/api/project_badges/measure?project=ha-activity-tracker&metric=alert_status)](https://sonar.alves-dev.com/dashboard?id=ha-activity-tracker)
 [![Coverage](https://sonar.alves-dev.com/api/project_badges/measure?project=ha-activity-tracker&metric=coverage)](https://sonar.alves-dev.com/dashboard?id=ha-activity-tracker)
-![Version](https://img.shields.io/badge/Version-2026.9.2-41BDF5?style=flat-square)
+![Version](https://img.shields.io/badge/Version-2026.9.3-41BDF5?style=flat-square)
 ![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.8%2B-41BDF5?logo=homeassistant)
 
 Track activities in Home Assistant with one composable start rule and one
@@ -29,8 +29,9 @@ compact daily summaries independently of Recorder.
   observation.
 - Per-monitor retention, minimum completed duration, and seconds/minutes/hours
   presentation; hours are the default.
-- Today, current week, current month, and closed historical days. **Last 1** is
-  yesterday; **Last 2** is the day before yesterday.
+- Today, current week, current month, specific closed historical days, and
+  closed rolling windows. A specific day 10 means only the date ten days ago;
+  a 10-day window means the ten complete days before today.
 - Average local start/end times, calculated circularly so times around midnight
   average correctly.
 - A selectable cross-midnight policy: started day, ended day, or split at local
@@ -55,10 +56,9 @@ Install the custom repository from HACS and restart Home Assistant.
 
 ## Configure
 
-Add **Activity Tracker** from *Settings → Devices & services → Add integration*.
 Use the **Activity Rules** sidebar to create, edit, or copy activities as
-detached drafts; the
-integration configuration page is only for initial setup.
+detached drafts. Activity Tracker no longer exposes the native **Add entry**
+configuration flow; the sidebar is the only activity editor.
 
 Choose at least one report period and one metric for every selected period.
 Monitor-wide metrics, such as current-session duration and time since the latest
@@ -66,6 +66,11 @@ session, are optional. Editing a rule or cross-midnight policy preserves
 retained summaries and applies the new behavior to future evaluations. There is
 no configuration, entity, storage, or Recorder-history migration from prior
 Activity Tracker releases.
+
+For reports, use **Specific closed days** when you need one exact date in the
+past (for example, day 10), and **Closed rolling windows** when you need the
+last N complete days before today (for example, 10 days). Today is excluded
+from every rolling window.
 
 Choose **Template rule** when the activity needs an expression beyond the guided
 conditions. Enter a boolean `Start when` and `Stop when` template. For example,

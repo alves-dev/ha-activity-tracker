@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-09-24 — Janelas móveis fechadas e edição somente pelo painel
+
+- Mantido `previous_day:N` como o dia-calendário fechado exatamente N dias
+  atrás.
+- Adicionado `rolling_window:N`, que cobre os N dias completos anteriores a
+  hoje e exclui o dia atual.
+- Diferenciados os nomes, textos de ajuda e atributos dos sensores para evitar
+  confundir dia específico com janela móvel.
+- Removido o fluxo nativo de configuração e o botão **Add entry**; criação e
+  edição agora ficam exclusivamente no painel administrativo **Activity Rules**.
+- Atualizada a integração para a versão `2026.9.3`.
+
 ## 2026-09-19 — Context Mesh audit and current-state alignment
 
 - Audited the existing integration, tests, README, manifest, and project

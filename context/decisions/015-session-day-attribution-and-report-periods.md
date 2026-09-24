@@ -4,8 +4,8 @@
 
 Daily summaries currently always split an activity at local midnight. Some
 activities, notably sleep, are more useful when attributed only to the day they
-end. Extra day reports also use a rolling range whose `Last 1` means today,
-which conflicts with the requested closed-day meaning.
+end. Historical reports need both one exact closed date and a distinct rolling
+range of complete dates before today.
 
 ## Decision
 
@@ -25,8 +25,9 @@ in the period. It is therefore safe around midnight without retaining detailed
 sessions.
 
 `previous_day:N` is a single closed local date offset by N days: `N=1` is
-yesterday. It replaces the ambiguous extra rolling-day setting. Current day,
-week, and month remain observed-to-date calendar reports.
+yesterday. `rolling_window:N` is a separate closed range containing the N days
+before today. Current day, week, and month remain observed-to-date calendar
+reports.
 
 The current-day total-duration sensor is a `total_increasing` daily counter and
 is graphed with `sum`. Other report totals are point-in-time measurements. The

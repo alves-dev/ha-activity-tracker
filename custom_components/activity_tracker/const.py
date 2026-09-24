@@ -6,7 +6,7 @@ from homeassistant.const import Platform
 
 DOMAIN = "activity_tracker"
 INTEGRATION_NAME = "Activity Tracker"
-INTEGRATION_VERSION = "2026.9.2"
+INTEGRATION_VERSION = "2026.9.3"
 PLATFORMS = (Platform.BINARY_SENSOR, Platform.SENSOR)
 
 CONF_RULE = "rule"
@@ -20,6 +20,7 @@ PERIOD_WEEK = "current_week"
 PERIOD_MONTH = "current_month"
 PERIODS = (PERIOD_TODAY, PERIOD_WEEK, PERIOD_MONTH)
 PERIOD_PREVIOUS_DAY_PREFIX = "previous_day:"
+PERIOD_ROLLING_WINDOW_PREFIX = "rolling_window:"
 
 METRIC_TOTAL_DURATION = "total_duration"
 METRIC_SESSION_COUNT = "session_count"

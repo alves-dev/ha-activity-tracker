@@ -31,6 +31,7 @@ from .const import (
     OPT_RETENTION_DAYS,
     PERIOD_METRICS,
     PERIOD_PREVIOUS_DAY_PREFIX,
+    PERIOD_ROLLING_WINDOW_PREFIX,
 )
 from .rules import (
     CONDITION_NUMERIC_STATE,
@@ -386,12 +387,13 @@ def _normalize_period_metrics(value: object) -> dict[str, list[str]]:
 def _valid_period(value: object) -> bool:
     if value in {"current_day", "current_week", "current_month"}:
         return True
-    if not isinstance(value, str) or not value.startswith(PERIOD_PREVIOUS_DAY_PREFIX):
+    if not isinstance(value, str):
         return False
-    return (
-        value.removeprefix(PERIOD_PREVIOUS_DAY_PREFIX).isdigit()
-        and int(value.removeprefix(PERIOD_PREVIOUS_DAY_PREFIX)) > 0
-    )
+    for prefix in (PERIOD_PREVIOUS_DAY_PREFIX, PERIOD_ROLLING_WINDOW_PREFIX):
+        if value.startswith(prefix):
+            suffix = value.removeprefix(prefix)
+            return suffix.isdigit() and int(suffix) > 0
+    return False
 
 
 def _expression_snapshot(expression, states, now, template_results) -> dict[str, Any]:

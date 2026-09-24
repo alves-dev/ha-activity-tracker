@@ -9,16 +9,16 @@ integration configuration page would create a second, incomplete editing path.
 
 ## Decision
 
-Do not expose an options flow from `ConfigFlow`. Existing activities are edited
+Do not expose a config or options flow. Existing and new activities are managed
 only in the admin-only Activity Rules sidebar, through its server-owned draft
-validation and apply commands. The native configuration flow remains available
-for initial setup.
+validation and apply commands.
 
 ## Outcome
 
-Implemented on 2026-09-10. The options-flow implementation remains in the
-module for compatibility with existing unit coverage, but Home Assistant no
-longer advertises it as the integration's configure action.
+Implemented on 2026-09-24. The native editor and its unit coverage were
+removed, and the manifest no longer advertises a config flow. A minimal
+compatibility module remains so Home Assistant can restore existing entries
+without importing the removed editor.
 
 ## Status
 

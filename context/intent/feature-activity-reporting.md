@@ -15,6 +15,8 @@ without interpreting raw state changes or maintaining separate helper sensors.
 
 - [x] Users select report metrics independently for every report period.
 - [x] `Last 1` is yesterday and `Last 2` is the day before yesterday.
+- [x] Specific closed days and closed rolling windows are distinct report
+  choices; rolling windows exclude today.
 - [x] Average start and end times use circular local-time averages.
 - [x] Time since the latest completed session uses the selected duration unit.
 - [x] Reports do not present unclassified duration as if it were measured
@@ -26,6 +28,7 @@ without interpreting raw state changes or maintaining separate helper sensors.
 
 - [Project Intent](project-intent.md)
 - [Decision: Session Day Attribution](../decisions/015-session-day-attribution-and-report-periods.md)
+- [Decision: Closed Rolling Report Windows and Panel-Only Editing](../decisions/026-closed-rolling-report-windows-and-panel-only-editing.md)
 - [Pattern: Selected Metric Entity Factory](../knowledge/patterns/selected-metric-entity-factory.md)
 
 ## Status

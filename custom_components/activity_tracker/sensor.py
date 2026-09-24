@@ -39,6 +39,8 @@ from .const import (
     METRIC_TOTAL_DURATION,
     METRIC_WEEKDAY_MAX,
     OPT_DURATION_UNIT,
+    PERIOD_PREVIOUS_DAY_PREFIX,
+    PERIOD_ROLLING_WINDOW_PREFIX,
 )
 from .models import average_time_of_day, format_duration
 from .runtime import ActivityTrackerRuntime
@@ -170,8 +172,10 @@ class ActivityMetricSensor(SensorEntity):
             self._period or "current_day"
         )
         base_attrs = {"period_start": start.isoformat(), "period_end": end.isoformat()}
-        if self._period and self._period.startswith("previous_day:"):
+        if self._period and self._period.startswith(PERIOD_PREVIOUS_DAY_PREFIX):
             base_attrs["previous_day_offset"] = int(self._period.split(":", 1)[1])
+        elif self._period and self._period.startswith(PERIOD_ROLLING_WINDOW_PREFIX):
+            base_attrs["rolling_window_days"] = int(self._period.split(":", 1)[1])
         if self._metric == METRIC_WEEKDAY_MAX:
             return self._weekday_max()
         total = sum(summary.total_seconds for summary in summaries)
@@ -264,10 +268,19 @@ def _metric_name(metric: str, period: str | None) -> str:
             METRIC_LAST_SESSION_END,
         }
     }
-    period_label = (
-        (period or "").replace("current_", "Current ").replace("previous_day:", "Last ")
-    )
+    period_label = _period_label(period)
     return f"{labels.get(metric, metric)} {period_label}".strip()
+
+
+def _period_label(period: str | None) -> str:
+    """Return an unambiguous user-facing report-period label."""
+    if not period:
+        return ""
+    if period.startswith(PERIOD_PREVIOUS_DAY_PREFIX):
+        return f"Specific day {period.split(':', 1)[1]}"
+    if period.startswith(PERIOD_ROLLING_WINDOW_PREFIX):
+        return f"Last {period.split(':', 1)[1]} days"
+    return period.replace("current_", "Current ")
 
 
 def _metric_icon(metric: str) -> str:

@@ -196,6 +196,47 @@ def test_draft_validation_accepts_numeric_state_comparison() -> None:
     assert data["rule"]["start_when"]["conditions"][0]["value"] == "25.0"
 
 
+def test_draft_validation_accepts_rolling_window_period() -> None:
+    hass = SimpleNamespace(states=SimpleNamespace(get=lambda _: None))
+    draft = {
+        "name": "Gym",
+        "template": "custom",
+        "rule": {
+            "start_when": {
+                "operator": "all",
+                "conditions": [
+                    {
+                        "type": "state",
+                        "entity_id": "binary_sensor.x",
+                        "states": ["on"],
+                        "operator": "equals",
+                        "for_seconds": 0,
+                    }
+                ],
+            },
+            "stop_when": {
+                "operator": "all",
+                "conditions": [
+                    {
+                        "type": "state",
+                        "entity_id": "binary_sensor.x",
+                        "states": ["off"],
+                        "operator": "equals",
+                        "for_seconds": 0,
+                    }
+                ],
+            },
+        },
+        "options": {},
+        "period_metrics": {"rolling_window:10": ["session_count"]},
+        "enabled_metrics": [],
+    }
+
+    data, _options = normalize_draft(hass, draft)
+
+    assert data["period_metrics"] == {"rolling_window:10": ["session_count"]}
+
+
 def test_panel_review_action_is_not_shadowed_by_the_review_renderer() -> None:
     source = Path(
         "custom_components/activity_tracker/frontend/activity-rules-panel.js"

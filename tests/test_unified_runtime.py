@@ -91,3 +91,23 @@ def test_previous_day_period_selects_one_closed_local_date() -> None:
     assert [summary.total_seconds for summary in summaries] == [8]
     assert start.date().isoformat() == "2026-09-08"
     assert end.date().isoformat() == "2026-09-09"
+
+
+def test_rolling_window_period_selects_complete_days_before_today() -> None:
+    runtime = _runtime()
+    now = datetime(2026, 9, 24, 13, tzinfo=datetime.now().astimezone().tzinfo)
+    runtime._data["daily_summaries"] = {
+        "2026-09-13": {"total_seconds": 3},
+        "2026-09-14": {"total_seconds": 7},
+        "2026-09-15": {"total_seconds": 8},
+        "2026-09-23": {"total_seconds": 9},
+        "2026-09-24": {"total_seconds": 10},
+    }
+    with patch(
+        "custom_components.activity_tracker.runtime.dt_util.now", return_value=now
+    ):
+        summaries, start, end = runtime.period_summaries("rolling_window:10")
+
+    assert [summary.total_seconds for summary in summaries] == [7, 8, 9]
+    assert start.date().isoformat() == "2026-09-14"
+    assert end.date().isoformat() == "2026-09-24"
