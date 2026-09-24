@@ -57,10 +57,10 @@ time, restart recovery, and application switches follow the accepted contract.
 ## Related
 
 - [Feature: Flexible Activity Monitoring](../intent/feature-flexible-activity-monitoring.md)
-- [Feature: Foreground Application Insights](../intent/feature-foreground-application-insights.md)
+- [Feature: Durable Activity History](../intent/feature-durable-activity-history.md)
 - [Decision: Real-Time Session Accounting](003-real-time-session-accounting.md)
 - [Decision: Compact Daily Summary Storage](004-compact-daily-summary-storage.md)
-- [Decision: Mobile Device Interaction Heartbeat](013-mobile-device-interaction-heartbeat.md)
+- [Decision: Unified Activity Rules and Source Health](014-unified-activity-rules.md)
 
 ## Status
 

@@ -16,8 +16,10 @@ an empty schema dedicated to unified-rule summaries.
 
 Recorder import and reimport are removed from configuration, runtime,
 diagnostics, and user documentation. Retained history begins with live
-observations made by the new monitor. Rule or cross-midnight-policy edits clear
-incompatible retained summaries only after explicit confirmation.
+observations made by the new monitor. Rule and cross-midnight-policy edits do
+not rewrite retained summaries; the current implementation applies the new
+behavior to future evaluations and preserves the active checkpoint. See
+Decision 024.
 
 ## Rationale
 
@@ -54,4 +56,4 @@ Recorder-import compatibility and preservation requirements from Decisions 005,
 ## Status
 
 - **Created**: 2026-09-09
-- **Status**: Accepted
+- **Status**: Accepted; rule-edit history behavior refined by Decision 024

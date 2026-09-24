@@ -39,7 +39,7 @@ at runtime and is covered for home, fallback, and named-zone cases.
 ## Related
 
 - [Feature: Flexible Activity Monitoring](../intent/feature-flexible-activity-monitoring.md)
-- [Pattern: Activity State Classification](../knowledge/patterns/activity-state-classification.md)
+- [Pattern: Unified Rule Evaluation and Exact Deadlines](../knowledge/patterns/unified-rule-evaluation.md)
 - [Decision: Home Assistant Config-Entry Integration](002-home-assistant-integration-architecture.md)
 
 ## Status

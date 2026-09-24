@@ -31,6 +31,7 @@ from .const import (
     OPT_MINIMUM_SESSION_SECONDS,
     OPT_RETENTION_DAYS,
     PERIOD_PREVIOUS_DAY_PREFIX,
+    PERIOD_ROLLING_WINDOW_PREFIX,
     update_signal,
 )
 from .models import DailySummary, Session
@@ -301,6 +302,13 @@ class ActivityTrackerRuntime:
                 offset = 1
             date = now.date() - timedelta(days=offset)
             start_date, end_date = date, date
+        elif period.startswith(PERIOD_ROLLING_WINDOW_PREFIX):
+            try:
+                days = max(1, int(period.split(":", 1)[1]))
+            except ValueError:
+                days = 1
+            start_date = now.date() - timedelta(days=days)
+            end_date = now.date() - timedelta(days=1)
         elif period == "current_month":
             start_date, end_date = now.date().replace(day=1), now.date()
         elif period == "current_week":

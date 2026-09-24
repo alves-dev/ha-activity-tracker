@@ -6,20 +6,29 @@ Each monitor exposes only the report and monitor-wide measurements selected by
 the user. Reports cover current local day, week, month, and selected closed
 historical days.
 
+## Why
+
+Users can answer both immediate and historical questions about an activity
+without interpreting raw state changes or maintaining separate helper sensors.
+
 ## Acceptance Criteria
 
 - [x] Users select report metrics independently for every report period.
 - [x] `Last 1` is yesterday and `Last 2` is the day before yesterday.
+- [x] Specific closed days and closed rolling windows are distinct report
+  choices; rolling windows exclude today.
 - [x] Average start and end times use circular local-time averages.
 - [x] Time since the latest completed session uses the selected duration unit.
-- [x] Unknown-duration reporting is absent.
-- [x] The current-day total is a `total_increasing` sensor with `sum`
-  statistics; other totals are measurements.
+- [x] Reports do not present unclassified duration as if it were measured
+  activity.
+- [x] The current-day total behaves as a daily increasing total, while other
+  totals represent the selected report at the time it is viewed.
 
 ## Related
 
 - [Project Intent](project-intent.md)
 - [Decision: Session Day Attribution](../decisions/015-session-day-attribution-and-report-periods.md)
+- [Decision: Closed Rolling Report Windows and Panel-Only Editing](../decisions/026-closed-rolling-report-windows-and-panel-only-editing.md)
 - [Pattern: Selected Metric Entity Factory](../knowledge/patterns/selected-metric-entity-factory.md)
 
 ## Status

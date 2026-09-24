@@ -14,13 +14,12 @@ Home Assistant entities.
 
 ## Current State
 
-The custom integration is active at version 2026.9.2 and supports UI-only
-monitor setup, persistent daily summaries, configurable report periods and
-metrics, and complete monitor editing. It has zone-presence and native-template
-rule templates, plus a generic rule editor with state, state-duration, and
-report-silence conditions.
-
-The integration is localized in English and Brazilian Portuguese. It is distributed as a HACS custom integration and requires Home Assistant 2026.8 or newer.
+The integration is active and supports guided monitor setup, persistent daily
+summaries, configurable report periods and metrics, and complete monitor
+editing. It includes zone-presence and native-template rule templates plus a
+generic rule editor with state, numeric-state, state-duration, and
+report-silence conditions. The interface is localized in English and Brazilian
+Portuguese.
 
 ## Current Features
 
@@ -32,13 +31,11 @@ The integration is localized in English and Brazilian Portuguese. It is distribu
 ## Scope Boundaries
 
 The current product does not provide a permanent detailed session history,
-manual correction of completed sessions, cross-monitor rankings, background-
-application tracking, automatic
+manual correction of completed sessions, cross-monitor rankings, automatic
 application classification, or automatic interpretation of activity duration.
-The Activity Rules sidebar is the approved complete activity editor. It keeps
-unsaved drafts in the browser but validates and applies them through the
-integration backend; other custom dashboards remain future evolution
-candidates.
+The Activity Rules sidebar is the complete activity editor. It keeps unsaved
+drafts in the browser but validates and applies them through the integration
+backend.
 
 For the full traceability of the retired implementation specification—including requirements that are only partial or not yet implemented—see [Legacy Specification Traceability](../evolution/legacy-specification-traceability.md).
 

@@ -46,7 +46,7 @@ The plan covers incomplete MVP requirements. The candidates listed under *Future
 - [Flexible Activity Monitoring](../intent/feature-flexible-activity-monitoring.md)
 - [Activity Reporting](../intent/feature-activity-reporting.md)
 - [Durable Activity History](../intent/feature-durable-activity-history.md)
-- [Foreground Application Insights](../intent/feature-foreground-application-insights.md)
+- [Flexible Activity Monitoring](../intent/feature-flexible-activity-monitoring.md)
 - [Real-Time Session Accounting](../decisions/003-real-time-session-accounting.md)
 - [Compact Daily Summary Storage](../decisions/004-compact-daily-summary-storage.md)
 - [Recorder History Reconstruction](../decisions/005-recorder-history-reconstruction.md)

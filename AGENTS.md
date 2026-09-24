@@ -5,7 +5,7 @@
 - Install: `uv sync`
 - Test: `uv run pytest`
 - Lint: `uv run ruff check .`
-- Validate integration structure: `python3 /path/to/home-assistant-integration-standards/scripts/validate_integration_structure.py .`
+- Validate integration structure: `python3 /home/alves-dev/.codex/skills/home-assistant-integration-standards/scripts/validate_integration_structure.py .`
 - Local smoke test: copy `custom_components/activity_tracker` into a Home Assistant configuration directory, restart Home Assistant, add a monitor through the UI, and change the source state from Developer Tools.
 
 ## Local Home Assistant Test Instance
@@ -52,6 +52,10 @@ root/
 │   └── evolution/
 ├── dev/
 ├── custom_components/activity_tracker/
+│   ├── rules.py, session_engine.py, accounting.py, models.py
+│   ├── runtime.py, storage.py, sensor.py, binary_sensor.py
+│   ├── config_flow.py, panel.py, panel_editor.py, frontend/
+│   └── manifest.json, strings.json, translations/
 ├── tests/
 └── docs/
 ```

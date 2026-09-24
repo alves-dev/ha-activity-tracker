@@ -2,15 +2,21 @@
 
 ## Context
 
-Activity reports require reliable recognition of starts, ends, state changes, active sessions, and application switches while the integration is running.
+Activity reports require reliable recognition of starts, ends, state changes,
+active sessions, and elapsed-time conditions while the integration is running.
 
 ## Decision
 
-Observe configured source state changes in real time, classify each observed state into activity, maintain one active session per monitor, and refresh the current-session display on a minute interval. Treat a foreground application identifier change as a session boundary.
+Observe configured source state changes and template results in real time,
+maintain one active session per monitor, and refresh current-session displays on
+the presentation interval. Schedule condition deadlines rather than polling.
 
 ## Rationale
 
-This approach produces immediate current-state reporting and captures sessions as they happen. It preserves one logical session when an entity changes between configured active states, while retaining application-level boundaries where the user expects them. Rationale is inferred from the runtime implementation and tests.
+This approach produces immediate current-state reporting and captures sessions
+as they happen. The evaluator and lifecycle engine remain independent from
+entity subscriptions and storage. Rationale is inferred from the runtime
+implementation and tests.
 
 ## Alternatives Considered
 
@@ -24,14 +30,13 @@ Outcomes to be documented as project evolves.
 
 - [Project Intent](../intent/project-intent.md)
 - [Feature: Flexible Activity Monitoring](../intent/feature-flexible-activity-monitoring.md)
-- [Feature: Foreground Application Insights](../intent/feature-foreground-application-insights.md)
+- [Decision: Unified Activity Rules and Source Health](014-unified-activity-rules.md)
 - [Decision: Compact Daily Summary Storage](004-compact-daily-summary-storage.md)
 - [Decision: Interruption and Session State Machine](006-interruption-and-session-state-machine.md)
-- [Pattern: Activity State Classification](../knowledge/patterns/activity-state-classification.md)
-- [Pattern: Calendar-Day Session Aggregation](../knowledge/patterns/calendar-day-session-aggregation.md)
+- [Pattern: Unified Rule Evaluation and Exact Deadlines](../knowledge/patterns/unified-rule-evaluation.md)
 
 ## Status
 
 - **Created**: 2026-08-27 (Phase: Intent)
-- **Status**: Accepted
+- **Status**: Superseded by Decision 014 on 2026-09-09
 - **Note**: Documented from existing implementation

@@ -76,6 +76,7 @@ async def test_sensor_factory_creates_only_explicit_unified_pairs() -> None:
             CONF_PERIOD_METRICS: {
                 "current_day": [METRIC_TOTAL_DURATION],
                 "previous_day:1": [METRIC_SESSION_COUNT],
+                "rolling_window:10": [METRIC_TOTAL_DURATION],
             },
             CONF_ENABLED_METRICS: [METRIC_TIME_SINCE_LAST_SESSION],
         },
@@ -92,5 +93,6 @@ async def test_sensor_factory_creates_only_explicit_unified_pairs() -> None:
     assert {(entity._metric, entity._period) for entity in entities} == {
         (METRIC_TOTAL_DURATION, "current_day"),
         (METRIC_SESSION_COUNT, "previous_day:1"),
+        (METRIC_TOTAL_DURATION, "rolling_window:10"),
         (METRIC_TIME_SINCE_LAST_SESSION, None),
     }

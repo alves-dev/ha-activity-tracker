@@ -11,6 +11,7 @@ from .const import (
     METRICS,
     PERIOD_METRICS,
     PERIOD_PREVIOUS_DAY_PREFIX,
+    PERIOD_ROLLING_WINDOW_PREFIX,
     PERIODS,
 )
 
@@ -44,9 +45,22 @@ def _selected_metrics(value: object, allowed: set[str] | frozenset[str]) -> list
 def _valid_period(value: object) -> bool:
     if value in PERIODS:
         return True
-    if not isinstance(value, str) or not value.startswith(PERIOD_PREVIOUS_DAY_PREFIX):
+    if not isinstance(value, str):
+        return False
+    prefix = next(
+        (
+            candidate
+            for candidate in (
+                PERIOD_PREVIOUS_DAY_PREFIX,
+                PERIOD_ROLLING_WINDOW_PREFIX,
+            )
+            if value.startswith(candidate)
+        ),
+        None,
+    )
+    if prefix is None:
         return False
     try:
-        return int(value.split(":", 1)[1]) > 0
+        return int(value.removeprefix(prefix)) > 0
     except ValueError:
         return False

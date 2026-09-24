@@ -6,6 +6,12 @@ Users define an activity with independent start and stop expressions over one or
 more Home Assistant entities. A monitor represents one activity and exposes
 whether it is active now.
 
+## Why
+
+Different activities need different evidence of starting and stopping. Users
+can describe that evidence in terms of the entities and expressions already
+available in their Home Assistant installation.
+
 ## Acceptance Criteria
 
 - [x] Start and stop rules support state, state-duration, and report-silence

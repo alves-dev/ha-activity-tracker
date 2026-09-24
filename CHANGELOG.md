@@ -2,6 +2,20 @@
 
 All user-relevant changes are documented in this file.
 
+## [2026.9.3] - 2026-09-24
+
+### Added
+
+- Added closed rolling-window reports. A 10-day window covers the ten complete
+  local days before today and excludes today.
+
+### Changed
+
+- Kept specific closed-day reports unchanged: day 10 still means only the date
+  ten days ago, with clearer sensor names and attributes.
+- Removed the native **Add entry** configuration flow. Activities are now
+  created and edited through the admin-only **Activity Rules** sidebar.
+
 ## [2026.9.2] - 2026-09-10
 
 ### Added

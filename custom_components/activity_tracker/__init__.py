@@ -11,7 +11,7 @@ from .runtime import ActivityTrackerRuntime
 
 
 async def async_setup(hass: HomeAssistant, _config: dict) -> bool:
-    """Set up integration-wide read-only UI services."""
+    """Set up the integration-wide Activity Rules panel."""
     await async_register_panel(hass)
     return True
 

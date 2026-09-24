@@ -72,4 +72,7 @@ entities provide a stable suggested action with their reason.
 ## Status
 
 - **Created**: 2026-08-27
-- **Status**: Accepted
+- **Status**: Superseded by Decisions 016 and 024 on 2026-09-09/2026-09-10
+- **Note**: Recorder reimport, legacy monitor-type history actions, and
+  automatic history clearing are not part of the current unified-rule
+  implementation.

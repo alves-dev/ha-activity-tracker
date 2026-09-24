@@ -20,6 +20,14 @@ confirmation or automatic history clear is required.
 Implemented on 2026-09-10. Explicit history deletion remains an administrative
 operation, separate from editing an activity.
 
+## Related
+
+- [Project Intent](../intent/project-intent.md)
+- [Feature: Guided Monitor Management](../intent/feature-guided-monitor-management.md)
+- [Feature: Durable Activity History](../intent/feature-durable-activity-history.md)
+- [Decision: Sidebar Draft Editor](021-sidebar-draft-editor.md)
+
 ## Status
 
+- **Created**: 2026-09-10
 - **Status**: Accepted

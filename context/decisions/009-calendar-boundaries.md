@@ -48,7 +48,7 @@ rolling windows remain local calendar-date ranges.
 - [Feature: Activity Reporting](../intent/feature-activity-reporting.md)
 - [Feature: Durable Activity History](../intent/feature-durable-activity-history.md)
 - [Decision: Compact Daily Summary Storage](004-compact-daily-summary-storage.md)
-- [Pattern: Calendar-Day Session Aggregation](../knowledge/patterns/calendar-day-session-aggregation.md)
+- [Pattern: Compact Daily Summary Accounting](../knowledge/patterns/compact-daily-summary-accounting.md)
 
 ## Status
 

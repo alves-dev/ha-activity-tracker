@@ -17,14 +17,14 @@ This document preserves the product and engineering information from the former 
 
 | Former specification topics | Context destination | Current status |
 | --- | --- | --- |
-| Entity active-state and generic state monitors | [Flexible Activity Monitoring](../intent/feature-flexible-activity-monitoring.md), [Activity State Classification](../knowledge/patterns/activity-state-classification.md) | Implemented |
+| Entity active-state and generic state monitors | [Flexible Activity Monitoring](../intent/feature-flexible-activity-monitoring.md), [Unified Rule Evaluation](../knowledge/patterns/unified-rule-evaluation.md) | Implemented |
 | Person/device zone monitors and explicit person-area presence monitors | [Flexible Activity Monitoring](../intent/feature-flexible-activity-monitoring.md) | Implemented |
-| Foreground application from state or a selected attribute; stable identifier with display label | [Foreground Application Insights](../intent/feature-foreground-application-insights.md), [Activity State Classification](../knowledge/patterns/activity-state-classification.md) | Implemented |
+| Foreground application from state or a selected attribute; stable identifier with display label | [Flexible Activity Monitoring](../intent/feature-flexible-activity-monitoring.md), [Unified Rule Evaluation](../knowledge/patterns/unified-rule-evaluation.md) | Retired; retained as historical specification traceability |
 | One config entry and virtual device per monitor; UI-only setup; selected periods and metrics | [Home Assistant Config-Entry Integration](../decisions/002-home-assistant-integration-architecture.md), [Guided Monitor Management](../intent/feature-guided-monitor-management.md) | Implemented |
 | Default 90-day retention, zero minimum duration, seven-day validation floor, minute current-session refresh, and HA-local time | [Compact Daily Summary Storage](../decisions/004-compact-daily-summary-storage.md), [Real-Time Session Accounting](../decisions/003-real-time-session-accounting.md) | Implemented |
 | Current day/week/month and positive rolling calendar-day periods | [Activity Reporting](../intent/feature-activity-reporting.md) | Implemented; week currently begins on Monday in code rather than using a configurable HA week boundary |
 | Complete-history/partial-day coverage semantics and reason attributes | [Data Quality and Diagnostics Gaps](#data-quality-and-diagnostics-gaps) | Partial |
-| Start, continuation, end, minimum duration, latest completed session, and midnight split rules | [Real-Time Session Accounting](../decisions/003-real-time-session-accounting.md), [Calendar-Day Session Aggregation](../knowledge/patterns/calendar-day-session-aggregation.md) | Implemented for normal observed sessions |
+| Start, continuation, end, minimum duration, latest completed session, and midnight split rules | [Real-Time Session Accounting](../decisions/003-real-time-session-accounting.md), [Compact Daily Summary Accounting](../knowledge/patterns/compact-daily-summary-accounting.md) | Implemented for normal observed sessions |
 | Unavailable tolerance, unknown downtime, and merge-gap semantics | [Interruption Handling Gaps](#interruption-handling-gaps) | Partial |
 | Compact per-monitor daily storage, checkpoint, latest-session metadata, retention cleanup, and entry-removal cleanup | [Compact Daily Summary Storage](../decisions/004-compact-daily-summary-storage.md) | Implemented core; schema and cleanup scheduling are partial |
 | Recorder bootstrap/rebuild | [Recorder History Reconstruction](../decisions/005-recorder-history-reconstruction.md) | Implemented core; diagnostics and boundary metadata are partial |
@@ -49,7 +49,7 @@ The current daily model contains `unknown_seconds`, `complete`, and `rule_versio
 The retired specification's implementation guidance maps to the existing architecture as follows:
 
 - Keep session classification and accounting outside sensor entities; current code places these responsibilities in `runtime.py` and pure helpers in `models.py`.
-- Use timezone-aware timestamps and split at local midnight; see [Calendar-Day Session Aggregation](../knowledge/patterns/calendar-day-session-aggregation.md).
+- Use timezone-aware timestamps and split at local midnight; see [Compact Daily Summary Accounting](../knowledge/patterns/compact-daily-summary-accounting.md).
 - Persist only aggregates, a checkpoint, and latest-session metadata; do not create an accidental detailed-session archive.
 - Use event-driven updates and an active-session minute refresh; avoid per-second updates and normal reporting queries against Recorder.
 - Derive unique entity IDs from stable monitor and metric identifiers rather than mutable names.

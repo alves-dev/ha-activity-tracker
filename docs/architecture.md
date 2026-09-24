@@ -26,12 +26,18 @@ selected seconds, minutes, or hours unit. Only the current-day total-duration
 sensor has the `total_increasing` state class, producing `sum` statistics for
 the Home Assistant daily graph; all other totals are measurements.
 
+`previous_day:N` selects one exact closed local date N days before today.
+`rolling_window:N` selects the N complete local dates before today, using the
+half-open range `[today - N days, today)`. The Activity Rules sidebar labels
+these choices separately and includes the selected offset or window length in
+sensor attributes.
+
 The admin-only **Activity Rules** sidebar receives a recursive live rule
 snapshot through a websocket subscription. It is a locally served custom
 element that uses Home Assistant theme variables. Its complete editor keeps
 only an unsaved draft in the browser; protected integration commands validate
 the contract, preview templates, calculate the review diff, classify history
 impact, and apply the entry. The panel never hosts config flows or writes a
-config entry directly. Updating rules does not clear summaries; an active
+config entry directly from browser code. Updating rules does not clear summaries; an active
 session is restored across the entry reload and remains open until a later
 evaluation matches the new stop rule.
