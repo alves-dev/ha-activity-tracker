@@ -13,6 +13,7 @@ from custom_components.activity_tracker.panel_editor import (
     draft_preview,
     normalize_draft,
 )
+from custom_components.activity_tracker.session_engine import UnifiedSessionEngine
 
 
 def test_rule_panel_snapshot_exposes_live_condition_results() -> None:
@@ -194,6 +195,75 @@ def test_draft_validation_accepts_numeric_state_comparison() -> None:
     data, _options = normalize_draft(hass, draft)
 
     assert data["rule"]["start_when"]["conditions"][0]["value"] == "25.0"
+
+
+def test_zone_template_accepts_multiple_zones_as_one_state_set() -> None:
+    zones = {
+        "zone.home": SimpleNamespace(name="home"),
+        "zone.gym_centro": SimpleNamespace(name="Academia Centro"),
+    }
+    hass = SimpleNamespace(states=SimpleNamespace(get=zones.get))
+    draft = {
+        "name": "Academia",
+        "template": "zone_presence",
+        "zone_entity_id": "person.igor",
+        "zone_ids": ["zone.home", "zone.gym_centro"],
+        "options": {},
+        "period_metrics": {"current_day": ["total_duration"]},
+        "enabled_metrics": [],
+    }
+
+    data, _options = normalize_draft(hass, draft)
+
+    assert data["rule"]["start_when"]["states"] == ["home", "Academia Centro"]
+    assert data["rule"]["stop_when"]["states"] == ["home", "Academia Centro"]
+    assert data["rule"]["stop_when"]["operator"] == "not_equals"
+    assert data["zone_ids"] == ["zone.home", "zone.gym_centro"]
+
+
+def test_multiple_zone_rule_starts_in_any_selected_zone_and_stops_outside() -> None:
+    now = datetime.now().astimezone()
+    zones = {
+        "zone.gym_centro": SimpleNamespace(name="Academia Centro"),
+        "zone.gym_bairro": SimpleNamespace(name="Academia Bairro"),
+    }
+    hass = SimpleNamespace(states=SimpleNamespace(get=zones.get))
+    draft = {
+        "name": "Academia",
+        "template": "zone_presence",
+        "zone_entity_id": "person.igor",
+        "zone_ids": ["zone.gym_centro", "zone.gym_bairro"],
+        "options": {},
+        "period_metrics": {"current_day": ["total_duration"]},
+        "enabled_metrics": [],
+    }
+    data, _options = normalize_draft(hass, draft)
+    engine = UnifiedSessionEngine(data["rule"])
+
+    state = SimpleNamespace(
+        state="Academia Centro", last_changed=now, last_reported=now
+    )
+    states = {"person.igor": state}
+
+    assert engine.process(states, now).action == "started"
+    assert engine.is_running
+
+    states["person.igor"] = SimpleNamespace(
+        state="Academia Bairro",
+        last_changed=now,
+        last_reported=now,
+    )
+    assert engine.process(states, now) is None
+    assert engine.is_running
+
+    states["person.igor"] = SimpleNamespace(
+        state="Shopping",
+        last_changed=now,
+        last_reported=now,
+    )
+    assert engine.process(states, now).action == "stopped"
+    assert not engine.is_running
+
 
 
 def test_draft_validation_accepts_rolling_window_period() -> None:

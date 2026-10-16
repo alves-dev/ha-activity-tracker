@@ -9,6 +9,11 @@
 - Corrigida a conversão de atividades de presença em zona para regras
   personalizadas, preservando as condições em grupos editáveis com botões para
   adicionar novas condições.
+- Atividades de presença em zona agora podem selecionar várias zonas reais do
+  Home Assistant; entrar em qualquer uma inicia a atividade e sair de todas
+  encerra.
+- O editor guiado agora usa seletores das entidades reais de pessoa/rastreador
+  e zona, mantendo o botão de remoção alinhado ao seletor.
 
 ## 2026-09-24 — Janelas móveis fechadas e edição somente pelo painel
 

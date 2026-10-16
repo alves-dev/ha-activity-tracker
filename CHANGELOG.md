@@ -10,6 +10,11 @@ All user-relevant changes are documented in this file.
   is active, STOP ends it even if START is also true.
 - Fixed conversion from zone-presence activities to custom rules so existing
   conditions are wrapped in editable groups with add-condition controls.
+- Zone-presence activities can now select multiple real Home Assistant zones;
+  entering any selected zone starts the activity and leaving all selected zones
+  stops it.
+- The guided zone editor now uses real person/tracker and zone selectors, and
+  keeps the remove-zone button aligned with each selector.
 
 ## [2026.9.3] - 2026-09-24
 
