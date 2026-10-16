@@ -19,6 +19,8 @@
 - Corrigida a avaliação inicial de regras por template, para que templates
   constantes como `{{ true }}` fiquem disponíveis imediatamente ao iniciar o
   monitor.
+- Removido o módulo legado de repairs de imagem que impedia a coleta da suíte
+  de testes.
 
 ## 2026-09-24 — Janelas móveis fechadas e edição somente pelo painel
 

@@ -19,6 +19,8 @@ All user-relevant changes are documented in this file.
   colorful status cards, icons, shadows, and improved responsive spacing.
 - Fixed initial template-rule evaluation so constant templates such as
   `{{ true }}` are available immediately when a monitor starts.
+- Removed the obsolete image-repair module that prevented the test suite from
+  being collected.
 
 ## [2026.9.3] - 2026-09-24
 
