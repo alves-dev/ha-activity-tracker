@@ -17,6 +17,8 @@ All user-relevant changes are documented in this file.
   keeps the remove-zone button aligned with each selector.
 - Refreshed the Activity Rules panel visual design with clearer hierarchy,
   colorful status cards, icons, shadows, and improved responsive spacing.
+- Fixed initial template-rule evaluation so constant templates such as
+  `{{ true }}` are available immediately when a monitor starts.
 
 ## [2026.9.3] - 2026-09-24
 

@@ -16,6 +16,9 @@
   e zona, mantendo o botão de remoção alinhado ao seletor.
 - Atualizado o visual do painel Activity Rules com hierarquia mais clara,
   cartões coloridos de status, ícones, sombras e espaçamento responsivo.
+- Corrigida a avaliação inicial de regras por template, para que templates
+  constantes como `{{ true }}` fiquem disponíveis imediatamente ao iniciar o
+  monitor.
 
 ## 2026-09-24 — Janelas móveis fechadas e edição somente pelo painel
 

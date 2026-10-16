@@ -28,6 +28,8 @@ available in their Home Assistant installation.
   each condition and expression.
 - [x] A template-rule monitor accepts independent Home Assistant templates for
   start and stop, including expressions over entity attributes.
+- [x] Constant template results are available during monitor initialization, so
+  a rule such as `{{ true }}` can start without waiting for a source event.
 - [x] A session starts only when the start expression is true and the stop
   expression is false; while active, a true stop expression takes precedence
   over a true start expression.
