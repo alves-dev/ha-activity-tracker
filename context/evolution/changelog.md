@@ -6,6 +6,9 @@
   falsa.
 - Com uma sessão ativa, a regra STOP encerra a sessão mesmo quando START
   também é verdadeira.
+- Corrigida a conversão de atividades de presença em zona para regras
+  personalizadas, preservando as condições em grupos editáveis com botões para
+  adicionar novas condições.
 
 ## 2026-09-24 — Janelas móveis fechadas e edição somente pelo painel
 

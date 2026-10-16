@@ -8,6 +8,8 @@ All user-relevant changes are documented in this file.
 
 - A session starts only when START is true and STOP is false. When a session
   is active, STOP ends it even if START is also true.
+- Fixed conversion from zone-presence activities to custom rules so existing
+  conditions are wrapped in editable groups with add-condition controls.
 
 ## [2026.9.3] - 2026-09-24
 
