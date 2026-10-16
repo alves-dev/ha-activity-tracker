@@ -34,7 +34,9 @@ counted as activity.
 Unavailable and unknown are ordinary explicit stop-condition values; there is no
 global unavailable policy, unavailable tolerance, merge-gap policy, or
 unknown-duration accounting. A **zone presence** template prepopulates a normal
-rule using the selected tracker and zone. The later **template rule** delivery
+rule using the selected tracker and one or more selected zones; presence in any
+selected zone starts the activity and a state outside all selected zones stops
+it. The later **template rule** delivery
 adds complete native-template start and stop expressions as defined in
 Decision 018; other activities use the custom-rule editor.
 

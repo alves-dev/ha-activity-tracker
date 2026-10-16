@@ -28,6 +28,14 @@ available in their Home Assistant installation.
   each condition and expression.
 - [x] A template-rule monitor accepts independent Home Assistant templates for
   start and stop, including expressions over entity attributes.
+- [x] Constant template results are available during monitor initialization, so
+  a rule such as `{{ true }}` can start without waiting for a source event.
+- [x] A session starts only when the start expression is true and the stop
+  expression is false; while active, a true stop expression takes precedence
+  over a true start expression.
+- [x] Guided zone-presence activities can select multiple real zones; presence
+  in any selected zone starts the activity and absence from all selected zones
+  stops it.
 - [x] An admin can inspect every monitor's live start/stop condition tree from
   the Activity Rules sidebar, using the active Home Assistant theme.
 - [x] An admin can add and edit monitors on one Activity Rules sidebar screen,

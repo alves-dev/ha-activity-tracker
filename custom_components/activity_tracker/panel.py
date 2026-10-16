@@ -36,7 +36,7 @@ _WEBSOCKET_SUBSCRIBE = f"{DOMAIN}/rules/subscribe"
 _WEBSOCKET_EDITOR_OPEN = f"{DOMAIN}/editor/open"
 _WEBSOCKET_EDITOR_VALIDATE = f"{DOMAIN}/editor/validate"
 _WEBSOCKET_EDITOR_APPLY = f"{DOMAIN}/editor/apply"
-_PANEL_ASSET_REVISION = "8"
+_PANEL_ASSET_REVISION = "9"
 
 
 async def async_register_panel(hass: HomeAssistant) -> None:
@@ -77,7 +77,13 @@ def websocket_subscribe(
 
     @callback
     def send_snapshot() -> None:
-        connection.send_event(msg["id"], {"monitors": _monitor_snapshots(hass)})
+        connection.send_event(
+            msg["id"],
+            {
+                "version": INTEGRATION_VERSION,
+                "monitors": _monitor_snapshots(hass),
+            },
+        )
 
     unsubscribers = [
         async_dispatcher_connect(hass, update_signal(entry.entry_id), send_snapshot)
@@ -113,7 +119,12 @@ async def websocket_editor_open(
         connection.send_error(msg["id"], "not_found", "Activity was not found")
         return
     connection.send_result(
-        msg["id"], {"draft": entry_draft(entry) if entry else new_draft()}
+        msg["id"],
+        {
+            "draft": entry_draft(entry) if entry else new_draft(),
+            "zones": _available_zones(hass),
+            "zone_sources": _available_zone_sources(hass),
+        },
     )
 
 
@@ -186,6 +197,40 @@ def _entry(hass: HomeAssistant, entry_id: object):
         ),
         None,
     )
+
+
+def _available_zones(hass: HomeAssistant) -> list[dict[str, str]]:
+    """Return real zone entities for the guided zone editor."""
+    zones = hass.states.async_all("zone")
+    result = []
+    for state in zones:
+        friendly_name = state.attributes.get("friendly_name", state.entity_id)
+        result.append(
+            {
+                "entity_id": state.entity_id,
+                "name": str(friendly_name),
+            }
+        )
+    return sorted(result, key=lambda zone: zone["name"].casefold())
+
+
+def _available_zone_sources(hass: HomeAssistant) -> list[dict[str, str]]:
+    """Return person and device-tracker entities for the guided zone editor."""
+    sources = [
+        state
+        for domain in ("person", "device_tracker")
+        for state in hass.states.async_all(domain)
+    ]
+    result = []
+    for state in sources:
+        friendly_name = state.attributes.get("friendly_name", state.entity_id)
+        result.append(
+            {
+                "entity_id": state.entity_id,
+                "name": str(friendly_name),
+            }
+        )
+    return sorted(result, key=lambda source: source["name"].casefold())
 
 
 def _monitor_snapshots(hass: HomeAssistant) -> list[dict[str, Any]]:

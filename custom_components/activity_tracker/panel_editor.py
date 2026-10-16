@@ -88,13 +88,22 @@ def entry_draft(entry: Any | None) -> dict[str, Any]:
         CONF_ENABLED_METRICS: data.get(CONF_ENABLED_METRICS, []),
     }
     if draft[CONF_TEMPLATE] == TEMPLATE_ZONE:
+        persisted_zone_ids = data.get("zone_ids")
+        if isinstance(persisted_zone_ids, list):
+            draft["zone_ids"] = [
+                value for value in persisted_zone_ids if isinstance(value, str)
+            ]
         start = draft[CONF_RULE].get("start_when", {})
-        if isinstance(start, Mapping):
+        if not draft.get("zone_ids") and isinstance(start, Mapping):
             draft["zone_entity_id"] = start.get("entity_id", "")
             states = start.get("states", [])
-            if isinstance(states, list) and len(states) == 1:
-                state = states[0]
-                draft["zone_id"] = "zone.home" if state == "home" else f"zone.{state}"
+            if isinstance(states, list):
+                draft["zone_ids"] = [
+                    "zone.home" if state == "home" else f"zone.{state}"
+                    for state in states
+                    if isinstance(state, str) and state
+                ]
+                draft["zone_id"] = (draft["zone_ids"] or [""])[0]
     if draft[CONF_TEMPLATE] == TEMPLATE_RULE:
         rule = draft[CONF_RULE]
         draft["start_template"] = _template_value(rule.get("start_when"))
@@ -142,16 +151,16 @@ def normalize_draft(hass, draft: object) -> tuple[dict[str, Any], dict[str, Any]
         enabled_metrics = []
     if errors:
         raise DraftValidationError(errors)
-    return (
-        {
-            CONF_NAME: name,
-            CONF_TEMPLATE: model,
-            CONF_RULE: rule,
-            CONF_PERIOD_METRICS: period_metrics,
-            CONF_ENABLED_METRICS: list(dict.fromkeys(enabled_metrics)),
-        },
-        options,
-    )
+    data = {
+        CONF_NAME: name,
+        CONF_TEMPLATE: model,
+        CONF_RULE: rule,
+        CONF_PERIOD_METRICS: period_metrics,
+        CONF_ENABLED_METRICS: list(dict.fromkeys(enabled_metrics)),
+    }
+    if model == TEMPLATE_ZONE:
+        data["zone_ids"] = _zone_ids(draft)
+    return data, options
 
 
 def draft_preview(hass, draft: object, entry: Any | None = None) -> dict[str, Any]:
@@ -240,16 +249,23 @@ def template_previews(hass, expression: Mapping[str, Any]) -> dict[str, bool | s
 def _normalize_rule(hass, draft: Mapping[str, Any], model: str) -> dict[str, Any]:
     if model == TEMPLATE_ZONE:
         entity_id = _string(draft.get("zone_entity_id"))
-        zone_id = _string(draft.get("zone_id"))
-        if not entity_id or not zone_id:
+        zone_ids = _zone_ids(draft)
+        if not entity_id or not zone_ids:
             raise DraftValidationError(
-                {"zone_entity_id": "required", "zone_id": "required"}
+                {"zone_entity_id": "required", "zone_ids": "required"}
             )
-        zone = hass.states.get(zone_id)
-        zone_value = "home" if zone_id == "zone.home" else getattr(zone, "name", None)
-        if not isinstance(zone_value, str):
-            zone_value = zone_id.removeprefix("zone.")
-        return _zone_rule(entity_id, zone_value)
+        zone_values = []
+        for zone_id in zone_ids:
+            zone = hass.states.get(zone_id)
+            zone_value = (
+                "home"
+                if zone_id == "zone.home"
+                else getattr(zone, "name", None)
+            )
+            if not isinstance(zone_value, str):
+                zone_value = zone_id.removeprefix("zone.")
+            zone_values.append(zone_value)
+        return _zone_rule(entity_id, zone_values)
     if model == TEMPLATE_RULE:
         start = _string(draft.get("start_template"))
         stop = _string(draft.get("stop_template"))
@@ -485,16 +501,28 @@ def _changes(previous_data, previous_options, data, options) -> list[dict[str, s
     return changes
 
 
-def _zone_rule(entity_id: str, zone_state: str) -> dict[str, Any]:
+def _zone_rule(entity_id: str, zone_states: list[str]) -> dict[str, Any]:
     return {
-        "start_when": {"type": "state", "entity_id": entity_id, "states": [zone_state]},
+        "start_when": {
+            "type": "state",
+            "entity_id": entity_id,
+            "states": zone_states,
+        },
         "stop_when": {
             "type": "state",
             "entity_id": entity_id,
-            "states": [zone_state],
+            "states": zone_states,
             "operator": "not_equals",
         },
     }
+
+
+def _zone_ids(draft: Mapping[str, Any]) -> list[str]:
+    """Read the new multi-zone field while accepting the legacy scalar field."""
+    values = draft.get("zone_ids")
+    if not isinstance(values, list):
+        values = [draft.get("zone_id")]
+    return list(dict.fromkeys(value for value in values if _string(value)))
 
 
 def _empty_rule() -> dict[str, Any]:

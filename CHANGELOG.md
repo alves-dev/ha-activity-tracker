@@ -2,6 +2,26 @@
 
 All user-relevant changes are documented in this file.
 
+## [2026.10.1] - 2026-10-16
+
+### Fixed
+
+- A session starts only when START is true and STOP is false. When a session
+  is active, STOP ends it even if START is also true.
+- Fixed conversion from zone-presence activities to custom rules so existing
+  conditions are wrapped in editable groups with add-condition controls.
+- Zone-presence activities can now select multiple real Home Assistant zones;
+  entering any selected zone starts the activity and leaving all selected zones
+  stops it.
+- The guided zone editor now uses real person/tracker and zone selectors, and
+  keeps the remove-zone button aligned with each selector.
+- Refreshed the Activity Rules panel visual design with clearer hierarchy,
+  colorful status cards, icons, shadows, and improved responsive spacing.
+- Fixed initial template-rule evaluation so constant templates such as
+  `{{ true }}` are available immediately when a monitor starts.
+- Removed the obsolete image-repair module that prevented the test suite from
+  being collected.
+
 ## [2026.9.3] - 2026-09-24
 
 ### Added

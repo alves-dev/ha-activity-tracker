@@ -246,6 +246,61 @@ def test_engine_closes_normal_delayed_stop_at_its_deadline() -> None:
     assert transition.accounting_ended_at == now + timedelta(seconds=40)
 
 
+def test_engine_does_not_start_when_start_and_stop_match() -> None:
+    now = datetime(2026, 9, 9, 12, tzinfo=datetime.now().astimezone().tzinfo)
+    engine = UnifiedSessionEngine(
+        {
+            "start_when": {
+                "type": CONDITION_STATE,
+                "entity_id": "binary_sensor.use",
+                "states": ["on"],
+            },
+            "stop_when": {
+                "type": CONDITION_STATE,
+                "entity_id": "sensor.health",
+                "states": ["bad"],
+            },
+        }
+    )
+    states = {
+        "binary_sensor.use": _state("on", now),
+        "sensor.health": _state("bad", now),
+    }
+
+    assert engine.process(states, now) is None
+    assert not engine.is_running
+
+
+def test_engine_stop_wins_when_running_and_both_match() -> None:
+    now = datetime(2026, 9, 9, 12, tzinfo=datetime.now().astimezone().tzinfo)
+    engine = UnifiedSessionEngine(
+        {
+            "start_when": {
+                "type": CONDITION_STATE,
+                "entity_id": "binary_sensor.use",
+                "states": ["on"],
+            },
+            "stop_when": {
+                "type": CONDITION_STATE,
+                "entity_id": "sensor.health",
+                "states": ["bad"],
+            },
+        }
+    )
+    states = {
+        "binary_sensor.use": _state("on", now),
+        "sensor.health": _state("ok", now),
+    }
+
+    assert engine.process(states, now).action == "started"
+    states["sensor.health"] = _state("bad", now + timedelta(minutes=1))
+
+    transition = engine.process(states, now + timedelta(minutes=1))
+
+    assert transition.action == "stopped"
+    assert not engine.is_running
+
+
 def test_unavailability_anchor_is_converted_to_the_rule_local_timezone() -> None:
     local = timezone(timedelta(hours=-3))
     now = datetime(2026, 9, 9, 20, tzinfo=local)

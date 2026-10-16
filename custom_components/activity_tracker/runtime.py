@@ -8,6 +8,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, State, callback
+from homeassistant.exceptions import TemplateError
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import (
     TrackTemplate,
@@ -118,12 +119,12 @@ class ActivityTrackerRuntime:
         )
         now = dt_util.now()
         if self._session is not None:
-            # Preserve an in-flight session across config-entry reloads. The
-            # next state/template event (or an existing deadline) evaluates the
-            # current rule; reloading must not retroactively end the session.
+            # Preserve an in-flight session across config-entry reloads, then
+            # immediately evaluate the current snapshot. This closes a
+            # restored session when STOP is already true instead of leaving the
+            # panel stale until another source event arrives.
             self._engine.started_at = self._session.started_at
-            self._schedule_deadline(now)
-            self._notify()
+            await self._async_evaluate(now)
         else:
             await self._async_evaluate(now)
 
@@ -170,13 +171,13 @@ class ActivityTrackerRuntime:
         values |= template_values(self._rule.get("stop_when", {}))
         if not values:
             return
+        self._template_results.update(_initial_template_results(self.hass, values))
         tracker = async_track_template_result(
             self.hass,
             [TrackTemplate(Template(value, self.hass), None) for value in values],
             self._async_template_result,
         )
         self._unsubscribers.append(tracker.async_remove)
-
     @callback
     def _async_template_result(self, _event, updates) -> None:
         """Store changed boolean results and evaluate the same session engine."""
@@ -338,3 +339,16 @@ class ActivityTrackerRuntime:
 
     def _notify(self) -> None:
         async_dispatcher_send(self.hass, self.signal)
+
+
+def _initial_template_results(
+    hass: HomeAssistant, values: set[str]
+) -> dict[str, bool]:
+    """Render template leaves once so constant rules are ready immediately."""
+    results: dict[str, bool] = {}
+    for value in values:
+        try:
+            results[value] = result_as_boolean(Template(value, hass).async_render())
+        except TemplateError:
+            continue
+    return results

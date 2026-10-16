@@ -11,9 +11,11 @@ valid user data.
 
 Rule and midnight-policy edits preserve retained summaries. The existing active
 session is restored across the config-entry reload caused by an update and is
-left open. Subsequent state/template events and scheduled deadlines evaluate it
-against the new rules; a matching new stop rule closes it normally. No browser
-confirmation or automatic history clear is required.
+immediately evaluated against the current rules and source snapshot. A matching
+stop rule closes it normally, including when STOP and START are both true. If
+STOP is not true, subsequent state/template events and scheduled deadlines
+continue evaluating it against the new rules. No browser confirmation or
+automatic history clear is required.
 
 ## Outcome
 

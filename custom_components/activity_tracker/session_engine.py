@@ -44,8 +44,11 @@ class UnifiedSessionEngine:
         template_results: Mapping[str, bool] | None = None,
     ) -> SessionTransition | None:
         """Evaluate one observed state snapshot and return at most one transition."""
+        stop_matches = expression_matches(
+            self._stop_when, states, now, template_results
+        )
         if self.started_at is not None:
-            if expression_matches(self._stop_when, states, now, template_results):
+            if stop_matches:
                 ended_at = (
                     _unavailable_anchor(self._stop_when, states, now, template_results)
                     or now
@@ -54,7 +57,10 @@ class UnifiedSessionEngine:
                 self.started_at = None
                 return SessionTransition("stopped", now, ended_at)
             return None
-        if expression_matches(self._start_when, states, now, template_results):
+        if (
+            not stop_matches
+            and expression_matches(self._start_when, states, now, template_results)
+        ):
             self.started_at = now
             return SessionTransition("started", now)
         return None
