@@ -15,6 +15,8 @@ All user-relevant changes are documented in this file.
   stops it.
 - The guided zone editor now uses real person/tracker and zone selectors, and
   keeps the remove-zone button aligned with each selector.
+- Refreshed the Activity Rules panel visual design with clearer hierarchy,
+  colorful status cards, icons, shadows, and improved responsive spacing.
 
 ## [2026.9.3] - 2026-09-24
 
