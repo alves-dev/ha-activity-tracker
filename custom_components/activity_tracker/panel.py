@@ -77,7 +77,13 @@ def websocket_subscribe(
 
     @callback
     def send_snapshot() -> None:
-        connection.send_event(msg["id"], {"monitors": _monitor_snapshots(hass)})
+        connection.send_event(
+            msg["id"],
+            {
+                "version": INTEGRATION_VERSION,
+                "monitors": _monitor_snapshots(hass),
+            },
+        )
 
     unsubscribers = [
         async_dispatcher_connect(hass, update_signal(entry.entry_id), send_snapshot)

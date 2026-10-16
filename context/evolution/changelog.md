@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026.10.1 — Precedência da regra de término
+
+- Uma sessão só inicia quando a regra START é verdadeira e a regra STOP é
+  falsa.
+- Com uma sessão ativa, a regra STOP encerra a sessão mesmo quando START
+  também é verdadeira.
+
 ## 2026-09-24 — Janelas móveis fechadas e edição somente pelo painel
 
 - Mantido `previous_day:N` como o dia-calendário fechado exatamente N dias

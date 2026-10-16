@@ -9,6 +9,7 @@ class ActivityRulesPanel extends HTMLElement {
     if (force) this._unsubscribe?.();
     try {
       this._unsubscribe = await this._hass.connection.subscribeMessage((event) => {
+        this._version = event.version || "";
         this._monitors = event.monitors || [];
         if (!this._monitors.some((item) => item.entry_id === this._selected)) this._selected = this._monitors[0]?.entry_id;
         this._render();
@@ -56,7 +57,7 @@ class ActivityRulesPanel extends HTMLElement {
   _render() {
     const monitors = this._monitors || [];
     const selected = monitors.find((item) => item.entry_id === this._selected);
-    this.innerHTML = `<style>${STYLE}</style><main><header><div><h1>${this._t("Activity Rules", "Regras de atividades")}</h1><p>${this._t("Create, inspect, and safely revise complete activity rules.", "Crie, inspecione e revise com segurança regras completas de atividade.")}</p></div><button class="primary" id="add">${this._t("Add activity", "Adicionar atividade")}</button></header>${this._error ? `<div class="message error">${escape(this._error)}</div>` : ""}${this._notice ? `<div class="message notice">${escape(this._notice)}</div>` : ""}${this._draft ? this._editor() : `<div class="layout"><aside class="card list">${this._list(monitors)}</aside><section class="card rule">${selected ? this._saved(selected) : `<div class="empty">${this._t("No activities yet.", "Nenhuma atividade configurada.")}</div>`}</section></div>`}</main>`;
+    this.innerHTML = `<style>${STYLE}</style><main><header><div><h1>${this._t("Activity Rules", "Regras de atividades")}</h1><p>${this._t("Create, inspect, and safely revise complete activity rules.", "Crie, inspecione e revise com segurança regras completas de atividade.")}</p>${this._version ? `<small class="version">${this._t("Integration version", "Versão da integração")}: ${escape(this._version)}</small>` : ""}</div><button class="primary" id="add">${this._t("Add activity", "Adicionar atividade")}</button></header>${this._error ? `<div class="message error">${escape(this._error)}</div>` : ""}${this._notice ? `<div class="message notice">${escape(this._notice)}</div>` : ""}${this._draft ? this._editor() : `<div class="layout"><aside class="card list">${this._list(monitors)}</aside><section class="card rule">${selected ? this._saved(selected) : `<div class="empty">${this._t("No activities yet.", "Nenhuma atividade configurada.")}</div>`}</section></div>`}</main>`;
     this.querySelector("#add")?.addEventListener("click", () => this._open());
     this.querySelector("#edit")?.addEventListener("click", () => this._open(selected?.entry_id));
     this.querySelector("#copy")?.addEventListener("click", () => this._open(selected?.entry_id, true));

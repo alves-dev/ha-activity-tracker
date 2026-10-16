@@ -2,6 +2,13 @@
 
 All user-relevant changes are documented in this file.
 
+## [2026.10.1] - 2026-10-16
+
+### Fixed
+
+- A session starts only when START is true and STOP is false. When a session
+  is active, STOP ends it even if START is also true.
+
 ## [2026.9.3] - 2026-09-24
 
 ### Added
