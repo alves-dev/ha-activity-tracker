@@ -195,6 +195,12 @@
   seconds. New monitors default to hours; existing monitors preserve seconds
   until edited.
 
+## 2026-10-26 — Development release cleanup workflow
+
+- Corrected the scheduled development-release cleanup workflow to retain the
+  newest five prereleases, run at the shared midnight schedule, and scope both
+  GitHub CLI operations explicitly to the current repository.
+
 ## 2026-08-28 — Administrative UX and diagnostics
 
 - Added explicit confirmation before a monitor edit clears retained history or
